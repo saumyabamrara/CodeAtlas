@@ -1,0 +1,13 @@
+# Python bytecode and test/tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local environments and configuration
+.venv/
+venv/
+backend/.env
+
+# Editor settings
+.vscode/
+.idea/
