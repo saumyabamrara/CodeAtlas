@@ -6,6 +6,8 @@ __pycache__/
 # Local environments and configuration
 .venv/
 venv/
+env/
+ENV/
 backend/.env
 
 # Editor settings
