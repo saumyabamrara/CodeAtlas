@@ -17,6 +17,8 @@ def create_application(settings: Settings | None = None) -> FastAPI:
         title=application_settings.app_name,
         version=application_settings.app_version,
     )
+    # Repository dependencies read the configured workspace from application state.
+    application.state.settings = application_settings
     application.add_middleware(
         CORSMiddleware,
         allow_origins=application_settings.cors_origins,

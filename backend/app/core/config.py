@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = ""
     log_level: str = "INFO"
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    repository_workspace: Path = BASE_DIR / "workspace"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

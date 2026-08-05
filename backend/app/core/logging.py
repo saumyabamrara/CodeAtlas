@@ -6,6 +6,12 @@ from datetime import UTC, datetime
 from typing import Any
 
 
+_LOG_RECORD_ATTRIBUTES = frozenset(logging.makeLogRecord({}).__dict__) | {
+    "asctime",
+    "message",
+}
+
+
 class JsonFormatter(logging.Formatter):
     """Render standard library log records as single-line JSON objects."""
 
@@ -19,6 +25,13 @@ class JsonFormatter(logging.Formatter):
         }
         if record.exc_info:
             payload["exception"] = self.formatException(record.exc_info)
+        payload.update(
+            {
+                field: value
+                for field, value in record.__dict__.items()
+                if field not in _LOG_RECORD_ATTRIBUTES and field not in payload
+            }
+        )
         return json.dumps(payload, default=str)
 
 

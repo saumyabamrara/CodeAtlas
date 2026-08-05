@@ -9,6 +9,7 @@ venv/
 env/
 ENV/
 backend/.env
+backend/workspace/
 
 # Editor settings
 .vscode/

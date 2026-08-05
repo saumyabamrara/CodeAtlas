@@ -1,6 +1,6 @@
 # CodeAtlas Backend
 
-The FastAPI foundation for CodeAtlas. It currently provides application configuration, structured logging, development CORS, and a health endpoint only.
+The FastAPI foundation for CodeAtlas. It provides application configuration, structured logging, development CORS, a health endpoint, and public GitHub repository cloning.
 
 ## Run locally
 
@@ -21,6 +21,16 @@ Visit `http://127.0.0.1:8000/health` to receive:
   "service": "CodeAtlas Backend"
 }
 ```
+
+Clone a public GitHub repository with `POST /repositories/clone`:
+
+```json
+{
+  "repository_url": "https://github.com/owner/repository"
+}
+```
+
+Repositories are cloned into `REPOSITORY_WORKSPACE` (default: `backend/workspace`).
 
 ## Layout
 
