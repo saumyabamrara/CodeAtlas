@@ -42,3 +42,17 @@ class RepositoryInspectResponse(BaseModel):
     is_spring_boot: bool
     application_class: str | None
     detection_reason: str
+
+
+class RepositoryAnalyzeRequest(BaseModel):
+    """Payload used to request parsing analysis of a cloned repository."""
+
+    local_path: str = Field(description="Local path of the cloned repository.")
+
+
+class RepositoryAnalyzeResponse(BaseModel):
+    """Summary of Java source parsing results for a repository."""
+
+    total_java_files: int
+    parsed_successfully: int
+    parse_failures: int

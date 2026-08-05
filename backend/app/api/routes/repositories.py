@@ -3,16 +3,20 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.dependencies.repositories import (
+    AnalysisServiceDependency,
     RepositoryInspectorDependency,
     RepositoryServiceDependency,
 )
 from app.exceptions.repository import (
     InvalidRepositoryPathError,
     InvalidRepositoryUrlError,
+    RepositoryAnalysisError,
     RepositoryCloneError,
     RepositoryInspectionError,
 )
 from app.schemas.repositories import (
+    RepositoryAnalyzeRequest,
+    RepositoryAnalyzeResponse,
     RepositoryCloneRequest,
     RepositoryCloneResponse,
     RepositoryInspectRequest,
@@ -63,4 +67,24 @@ def inspect_repository(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Repository inspection failed.",
+        ) from error
+
+
+@router.post("/analyze", response_model=RepositoryAnalyzeResponse)
+def analyze_repository(
+    payload: RepositoryAnalyzeRequest,
+    analysis_service: AnalysisServiceDependency,
+) -> RepositoryAnalyzeResponse:
+    """Parse all Java source files in a cloned repository."""
+    try:
+        return analysis_service.analyze_repository(payload.local_path)
+    except InvalidRepositoryPathError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except RepositoryAnalysisError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Repository analysis failed.",
         ) from error

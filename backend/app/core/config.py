@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
     repository_workspace: Path = BASE_DIR / "workspace"
+    java_parser_runner_jar: Path = (
+        BASE_DIR / "java_parser" / "target" / "codeatlas-java-parser-runner.jar"
+    )
+    java_executable: str = "java"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

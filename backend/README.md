@@ -6,8 +6,9 @@ The FastAPI foundation for CodeAtlas. It provides application configuration, str
 
 1. Create and activate a virtual environment.
 2. Install dependencies: `pip install -r requirements.txt`
-3. Copy `.env.example` to `.env` and adjust values if needed.
-4. Start the server from this `backend` directory:
+3. Build the JavaParser bridge (requires JDK 8+ and Maven): `mvn -f java_parser/pom.xml package`
+4. Copy `.env.example` to `.env` and adjust values if needed.
+5. Start the server from this `backend` directory:
 
    ```bash
    uvicorn main:app --reload
@@ -31,6 +32,15 @@ Clone a public GitHub repository with `POST /repositories/clone`:
 ```
 
 Repositories are cloned into `REPOSITORY_WORKSPACE` (default: `backend/workspace`).
+
+Inspect a cloned repository with `POST /repositories/inspect`, or parse all of its
+Java source files with `POST /repositories/analyze`. Both endpoints accept:
+
+```json
+{
+  "local_path": "path/to/cloned/repository"
+}
+```
 
 ## Layout
 
