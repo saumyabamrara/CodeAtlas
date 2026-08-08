@@ -12,6 +12,8 @@ backend/.env
 backend/workspace/
 backend/java_parser/target/
 backend/.tools/
+frontend/node_modules/
+frontend/dist/
 
 # Editor settings
 .vscode/
