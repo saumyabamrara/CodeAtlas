@@ -11,6 +11,7 @@ from app.exceptions.repository import (
 )
 from app.schemas.repositories import (
     ControllerMetadata,
+    JavaClassMetadata,
     RepositoryAnalyzeResponse,
     RepositoryControllersResponse,
 )
@@ -44,10 +45,21 @@ class AnalysisService:
 
         parsed_successfully = 0
         parse_failures = 0
+        classes: list[JavaClassMetadata] = []
         for java_file in java_files:
             try:
-                self._java_parser_service.parse_file(java_file)
+                parse_result = self._java_parser_service.parse_file(java_file)
                 parsed_successfully += 1
+                classes.extend(
+                    JavaClassMetadata(
+                        file_path=str(parse_result.file_path),
+                        package_name=parse_result.compilation_unit.package_name,
+                        class_name=class_declaration.class_name,
+                        qualified_class_name=class_declaration.qualified_class_name,
+                        annotations=list(class_declaration.annotations),
+                    )
+                    for class_declaration in parse_result.compilation_unit.classes
+                )
             except JavaParsingError as error:
                 parse_failures += 1
                 self._log_parse_failure(java_file, error)
@@ -56,6 +68,7 @@ class AnalysisService:
             total_java_files=len(java_files),
             parsed_successfully=parsed_successfully,
             parse_failures=parse_failures,
+            classes=classes,
         )
         logger.info(
             "Repository Java parsing analysis completed",

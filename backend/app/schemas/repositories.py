@@ -50,12 +50,23 @@ class RepositoryAnalyzeRequest(BaseModel):
     local_path: str = Field(description="Local path of the cloned repository.")
 
 
+class JavaClassMetadata(BaseModel):
+    """Structured metadata for one parsed Java class declaration."""
+
+    file_path: str
+    package_name: str
+    class_name: str
+    qualified_class_name: str
+    annotations: list[str]
+
+
 class RepositoryAnalyzeResponse(BaseModel):
     """Summary of Java source parsing results for a repository."""
 
     total_java_files: int
     parsed_successfully: int
     parse_failures: int
+    classes: list[JavaClassMetadata]
 
 
 class ControllerMetadata(BaseModel):
