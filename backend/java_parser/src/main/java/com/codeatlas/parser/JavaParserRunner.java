@@ -74,6 +74,22 @@ public final class JavaParserRunner {
                 firstAnnotation = false;
                 appendJsonString(output, annotation.getNameAsString());
             }
+            output.append("],\"extended_types\":[");
+            boolean firstExtendedType = true;
+            for (com.github.javaparser.ast.type.ClassOrInterfaceType extendedType : declaration.getExtendedTypes()) {
+                if (!firstExtendedType) {
+                    output.append(',');
+                }
+                firstExtendedType = false;
+                appendJsonString(output, extendedType.toString());
+            }
+            for (com.github.javaparser.ast.type.ClassOrInterfaceType implementedType : declaration.getImplementedTypes()) {
+                if (!firstExtendedType) {
+                    output.append(',');
+                }
+                firstExtendedType = false;
+                appendJsonString(output, implementedType.toString());
+            }
             output.append("]}");
         }
         output.append("]}");

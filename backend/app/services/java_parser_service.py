@@ -23,6 +23,7 @@ class JavaClassDeclaration:
     class_name: str
     qualified_class_name: str
     annotations: tuple[str, ...]
+    extended_types: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -108,6 +109,7 @@ class JavaParserService:
                     class_name=class_declaration["class_name"],
                     qualified_class_name=class_declaration["qualified_class_name"],
                     annotations=tuple(class_declaration["annotations"]),
+                    extended_types=tuple(class_declaration["extended_types"]),
                 )
                 for class_declaration in payload["classes"]
             ),

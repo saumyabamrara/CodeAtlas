@@ -69,6 +69,7 @@ class RepositoryAnalyzeResponse(BaseModel):
     classes: list[JavaClassMetadata]
     controllers: list["ControllerMetadata"]
     services: list["ServiceMetadata"]
+    repositories: list["RepositoryMetadata"]
 
 
 class ControllerMetadata(BaseModel):
@@ -96,3 +97,14 @@ class ServiceMetadata(BaseModel):
     class_name: str
     qualified_class_name: str
     annotations: list[str]
+
+
+class RepositoryMetadata(BaseModel):
+    """Metadata for one Spring repository type."""
+
+    file_path: str
+    package_name: str
+    class_name: str
+    qualified_class_name: str
+    annotations: list[str]
+    extended_types: list[str]

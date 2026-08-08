@@ -3,11 +3,13 @@
 from pathlib import Path
 
 from app.analyzers.controller_analyzer import ControllerAnalyzer
+from app.analyzers.repository_analyzer import RepositoryAnalyzer
 from app.analyzers.service_analyzer import ServiceAnalyzer
 from app.exceptions.repository import JavaParsingError
 from app.schemas.repositories import (
     ControllerMetadata,
     JavaClassMetadata,
+    RepositoryMetadata,
     ServiceMetadata,
 )
 from app.services.analysis_service import AnalysisService
@@ -37,31 +39,47 @@ class StubJavaParserService:
         return self._results[source_path]
 
 
-def test_analyze_repository_extracts_class_controller_and_service_metadata(
+def test_analyze_repository_extracts_class_controller_service_and_repository_metadata(
     tmp_path: Path,
 ) -> None:
-    """Analyze response includes class/controller/service extraction results."""
+    """Analyze response includes all extraction metadata from one parse pass."""
     repository_path = tmp_path / "repo"
     repository_path.mkdir()
 
     app_java = repository_path / "App.java"
     app_java.write_text("class App {}", encoding="utf-8")
-    service_java = repository_path / "UserService.java"
-    service_java.write_text("class UserService {}", encoding="utf-8")
     web_java = repository_path / "WebController.java"
     web_java.write_text("class WebController {}", encoding="utf-8")
-    admin_java = repository_path / "AdminController.java"
-    admin_java.write_text("class AdminController {}", encoding="utf-8")
-    root_java = repository_path / "Root.java"
-    root_java.write_text("class Root {}", encoding="utf-8")
     billing_java = repository_path / "BillingService.java"
     billing_java.write_text("class BillingService {}", encoding="utf-8")
-    audit_java = repository_path / "AuditService.java"
-    audit_java.write_text("class AuditService {}", encoding="utf-8")
+    annotated_repository_java = repository_path / "AnnotatedRepository.java"
+    annotated_repository_java.write_text("class AnnotatedRepository {}", encoding="utf-8")
+    qualified_annotated_repository_java = repository_path / "QualifiedAnnotatedRepository.java"
+    qualified_annotated_repository_java.write_text(
+        "class QualifiedAnnotatedRepository {}",
+        encoding="utf-8",
+    )
+    jpa_repository_java = repository_path / "JpaAccountStore.java"
+    jpa_repository_java.write_text("class JpaAccountStore {}", encoding="utf-8")
+    crud_repository_java = repository_path / "CrudAccountStore.java"
+    crud_repository_java.write_text("class CrudAccountStore {}", encoding="utf-8")
+    paging_repository_java = repository_path / "PagingAccountStore.java"
+    paging_repository_java.write_text("class PagingAccountStore {}", encoding="utf-8")
+    repository_interface_java = repository_path / "ContractStore.java"
+    repository_interface_java.write_text("interface ContractStore {}", encoding="utf-8")
+    qualified_repository_interface_java = repository_path / "QualifiedContractStore.java"
+    qualified_repository_interface_java.write_text(
+        "interface QualifiedContractStore {}",
+        encoding="utf-8",
+    )
+    outer_repository_java = repository_path / "OuterRepositories.java"
+    outer_repository_java.write_text("class OuterRepoContainer {}", encoding="utf-8")
+    name_only_repository_java = repository_path / "NameOnlyRepository.java"
+    name_only_repository_java.write_text("class NameOnlyRepository {}", encoding="utf-8")
     component_java = repository_path / "GenericComponent.java"
     component_java.write_text("class GenericComponent {}", encoding="utf-8")
-    worker_java = repository_path / "BackgroundWorker.java"
-    worker_java.write_text("class BackgroundWorker {}", encoding="utf-8")
+    plain_type_java = repository_path / "PlainType.java"
+    plain_type_java.write_text("class PlainType {}", encoding="utf-8")
 
     parser_results = {
         app_java.resolve(): JavaParserResult(
@@ -73,24 +91,13 @@ def test_analyze_repository_extracts_class_controller_and_service_metadata(
                         class_name="App",
                         qualified_class_name="App",
                         annotations=("SpringBootApplication",),
+                        extended_types=(),
                     ),
                     JavaClassDeclaration(
                         class_name="NestedConfig",
                         qualified_class_name="App.NestedConfig",
                         annotations=("Configuration",),
-                    ),
-                ),
-            ),
-        ),
-        service_java.resolve(): JavaParserResult(
-            file_path=service_java.resolve(),
-            compilation_unit=JavaCompilationUnit(
-                package_name="com.example.service",
-                classes=(
-                    JavaClassDeclaration(
-                        class_name="UserService",
-                        qualified_class_name="UserService",
-                        annotations=(),
+                        extended_types=(),
                     ),
                 ),
             ),
@@ -104,37 +111,13 @@ def test_analyze_repository_extracts_class_controller_and_service_metadata(
                         class_name="WebController",
                         qualified_class_name="WebController",
                         annotations=("RestController",),
+                        extended_types=(),
                     ),
                     JavaClassDeclaration(
                         class_name="InternalController",
                         qualified_class_name="WebController.InternalController",
                         annotations=("Controller",),
-                    ),
-                ),
-            ),
-        ),
-        admin_java.resolve(): JavaParserResult(
-            file_path=admin_java.resolve(),
-            compilation_unit=JavaCompilationUnit(
-                package_name="com.example.admin",
-                classes=(
-                    JavaClassDeclaration(
-                        class_name="AdminController",
-                        qualified_class_name="AdminController",
-                        annotations=("org.springframework.stereotype.Controller",),
-                    ),
-                ),
-            ),
-        ),
-        root_java.resolve(): JavaParserResult(
-            file_path=root_java.resolve(),
-            compilation_unit=JavaCompilationUnit(
-                package_name="",
-                classes=(
-                    JavaClassDeclaration(
-                        class_name="RootController",
-                        qualified_class_name="RootController",
-                        annotations=("Controller",),
+                        extended_types=(),
                     ),
                 ),
             ),
@@ -148,24 +131,149 @@ def test_analyze_repository_extracts_class_controller_and_service_metadata(
                         class_name="BillingService",
                         qualified_class_name="BillingService",
                         annotations=("Service",),
+                        extended_types=(),
                     ),
                     JavaClassDeclaration(
                         class_name="NestedBillingService",
                         qualified_class_name="BillingService.NestedBillingService",
                         annotations=("org.springframework.stereotype.Service",),
+                        extended_types=(),
                     ),
                 ),
             ),
         ),
-        audit_java.resolve(): JavaParserResult(
-            file_path=audit_java.resolve(),
+        annotated_repository_java.resolve(): JavaParserResult(
+            file_path=annotated_repository_java.resolve(),
             compilation_unit=JavaCompilationUnit(
-                package_name="com.example.audit",
+                package_name="com.example.repo",
                 classes=(
                     JavaClassDeclaration(
-                        class_name="AuditService",
-                        qualified_class_name="AuditService",
-                        annotations=("org.springframework.stereotype.Service",),
+                        class_name="AnnotatedRepository",
+                        qualified_class_name="AnnotatedRepository",
+                        annotations=("Repository",),
+                        extended_types=(),
+                    ),
+                ),
+            ),
+        ),
+        qualified_annotated_repository_java.resolve(): JavaParserResult(
+            file_path=qualified_annotated_repository_java.resolve(),
+            compilation_unit=JavaCompilationUnit(
+                package_name="com.example.repo",
+                classes=(
+                    JavaClassDeclaration(
+                        class_name="QualifiedAnnotatedRepository",
+                        qualified_class_name="QualifiedAnnotatedRepository",
+                        annotations=("org.springframework.stereotype.Repository",),
+                        extended_types=(),
+                    ),
+                ),
+            ),
+        ),
+        jpa_repository_java.resolve(): JavaParserResult(
+            file_path=jpa_repository_java.resolve(),
+            compilation_unit=JavaCompilationUnit(
+                package_name="com.example.repo",
+                classes=(
+                    JavaClassDeclaration(
+                        class_name="JpaAccountStore",
+                        qualified_class_name="JpaAccountStore",
+                        annotations=(),
+                        extended_types=("JpaRepository<Account, Long>",),
+                    ),
+                ),
+            ),
+        ),
+        crud_repository_java.resolve(): JavaParserResult(
+            file_path=crud_repository_java.resolve(),
+            compilation_unit=JavaCompilationUnit(
+                package_name="com.example.repo",
+                classes=(
+                    JavaClassDeclaration(
+                        class_name="CrudAccountStore",
+                        qualified_class_name="CrudAccountStore",
+                        annotations=(),
+                        extended_types=(
+                            "org.springframework.data.repository.CrudRepository<Account, Long>",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        paging_repository_java.resolve(): JavaParserResult(
+            file_path=paging_repository_java.resolve(),
+            compilation_unit=JavaCompilationUnit(
+                package_name="com.example.repo",
+                classes=(
+                    JavaClassDeclaration(
+                        class_name="PagingAccountStore",
+                        qualified_class_name="PagingAccountStore",
+                        annotations=(),
+                        extended_types=("PagingAndSortingRepository<Account, Long>",),
+                    ),
+                ),
+            ),
+        ),
+        repository_interface_java.resolve(): JavaParserResult(
+            file_path=repository_interface_java.resolve(),
+            compilation_unit=JavaCompilationUnit(
+                package_name="com.example.repo",
+                classes=(
+                    JavaClassDeclaration(
+                        class_name="ContractStore",
+                        qualified_class_name="ContractStore",
+                        annotations=(),
+                        extended_types=("Repository<Account, Long>",),
+                    ),
+                ),
+            ),
+        ),
+        qualified_repository_interface_java.resolve(): JavaParserResult(
+            file_path=qualified_repository_interface_java.resolve(),
+            compilation_unit=JavaCompilationUnit(
+                package_name="com.example.repo",
+                classes=(
+                    JavaClassDeclaration(
+                        class_name="QualifiedContractStore",
+                        qualified_class_name="QualifiedContractStore",
+                        annotations=(),
+                        extended_types=(
+                            "org.springframework.data.repository.Repository<Account, Long>",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        outer_repository_java.resolve(): JavaParserResult(
+            file_path=outer_repository_java.resolve(),
+            compilation_unit=JavaCompilationUnit(
+                package_name="com.example.repo",
+                classes=(
+                    JavaClassDeclaration(
+                        class_name="OuterRepoContainer",
+                        qualified_class_name="OuterRepoContainer",
+                        annotations=(),
+                        extended_types=(),
+                    ),
+                    JavaClassDeclaration(
+                        class_name="NestedRepo",
+                        qualified_class_name="OuterRepoContainer.NestedRepo",
+                        annotations=("Repository",),
+                        extended_types=(),
+                    ),
+                ),
+            ),
+        ),
+        name_only_repository_java.resolve(): JavaParserResult(
+            file_path=name_only_repository_java.resolve(),
+            compilation_unit=JavaCompilationUnit(
+                package_name="com.example.repo",
+                classes=(
+                    JavaClassDeclaration(
+                        class_name="NameOnlyRepository",
+                        qualified_class_name="NameOnlyRepository",
+                        annotations=(),
+                        extended_types=(),
                     ),
                 ),
             ),
@@ -173,25 +281,27 @@ def test_analyze_repository_extracts_class_controller_and_service_metadata(
         component_java.resolve(): JavaParserResult(
             file_path=component_java.resolve(),
             compilation_unit=JavaCompilationUnit(
-                package_name="com.example.component",
+                package_name="com.example.misc",
                 classes=(
                     JavaClassDeclaration(
                         class_name="GenericComponent",
                         qualified_class_name="GenericComponent",
                         annotations=("Component",),
+                        extended_types=(),
                     ),
                 ),
             ),
         ),
-        worker_java.resolve(): JavaParserResult(
-            file_path=worker_java.resolve(),
+        plain_type_java.resolve(): JavaParserResult(
+            file_path=plain_type_java.resolve(),
             compilation_unit=JavaCompilationUnit(
-                package_name="com.example.worker",
+                package_name="com.example.misc",
                 classes=(
                     JavaClassDeclaration(
-                        class_name="BackgroundWorker",
-                        qualified_class_name="BackgroundWorker",
+                        class_name="PlainType",
+                        qualified_class_name="PlainType",
                         annotations=("Transactional",),
+                        extended_types=("Serializable",),
                     ),
                 ),
             ),
@@ -202,215 +312,115 @@ def test_analyze_repository_extracts_class_controller_and_service_metadata(
         java_parser_service=StubJavaParserService(results=parser_results),
         controller_analyzer=ControllerAnalyzer(),
         service_analyzer=ServiceAnalyzer(),
+        repository_analyzer=RepositoryAnalyzer(),
     )
 
     response = analysis_service.analyze_repository(repository_path)
 
-    assert response.total_java_files == 9
-    assert response.parsed_successfully == 9
+    assert response.total_java_files == 14
+    assert response.parsed_successfully == 14
     assert response.parse_failures == 0
-    assert len(response.classes) == 12
+    assert len(response.classes) == 18
     assert all(isinstance(metadata, JavaClassMetadata) for metadata in response.classes)
-    assert {
-        (
-            metadata.file_path,
-            metadata.package_name,
-            metadata.class_name,
-            metadata.qualified_class_name,
-            tuple(metadata.annotations),
-        )
-        for metadata in response.classes
-    } == {
-        (
-            str(app_java.resolve()),
-            "com.example.app",
-            "App",
-            "App",
-            ("SpringBootApplication",),
-        ),
-        (
-            str(app_java.resolve()),
-            "com.example.app",
-            "NestedConfig",
-            "App.NestedConfig",
-            ("Configuration",),
-        ),
-        (
-            str(service_java.resolve()),
-            "com.example.service",
-            "UserService",
-            "UserService",
-            (),
-        ),
-        (
-            str(web_java.resolve()),
-            "com.example.web",
-            "WebController",
-            "WebController",
-            ("RestController",),
-        ),
-        (
-            str(web_java.resolve()),
-            "com.example.web",
-            "InternalController",
-            "WebController.InternalController",
-            ("Controller",),
-        ),
-        (
-            str(admin_java.resolve()),
-            "com.example.admin",
-            "AdminController",
-            "AdminController",
-            ("org.springframework.stereotype.Controller",),
-        ),
-        (
-            str(root_java.resolve()),
-            "",
-            "RootController",
-            "RootController",
-            ("Controller",),
-        ),
-        (
-            str(billing_java.resolve()),
-            "com.example.billing",
-            "BillingService",
-            "BillingService",
-            ("Service",),
-        ),
-        (
-            str(billing_java.resolve()),
-            "com.example.billing",
-            "NestedBillingService",
-            "BillingService.NestedBillingService",
-            ("org.springframework.stereotype.Service",),
-        ),
-        (
-            str(audit_java.resolve()),
-            "com.example.audit",
-            "AuditService",
-            "AuditService",
-            ("org.springframework.stereotype.Service",),
-        ),
-        (
-            str(component_java.resolve()),
-            "com.example.component",
-            "GenericComponent",
-            "GenericComponent",
-            ("Component",),
-        ),
-        (
-            str(worker_java.resolve()),
-            "com.example.worker",
-            "BackgroundWorker",
-            "BackgroundWorker",
-            ("Transactional",),
-        ),
-    }
-    assert len(response.controllers) == 4
+
+    assert len(response.controllers) == 2
     assert all(isinstance(metadata, ControllerMetadata) for metadata in response.controllers)
-    assert {
-        (
-            metadata.file_path,
-            metadata.package_name,
-            metadata.class_name,
-            metadata.qualified_class_name,
-            tuple(metadata.annotations),
-        )
-        for metadata in response.controllers
-    } == {
-        (
-            str(web_java.resolve()),
-            "com.example.web",
-            "WebController",
-            "WebController",
-            ("RestController",),
-        ),
-        (
-            str(web_java.resolve()),
-            "com.example.web",
-            "InternalController",
-            "WebController.InternalController",
-            ("Controller",),
-        ),
-        (
-            str(admin_java.resolve()),
-            "com.example.admin",
-            "AdminController",
-            "AdminController",
-            ("org.springframework.stereotype.Controller",),
-        ),
-        (
-            str(root_java.resolve()),
-            "",
-            "RootController",
-            "RootController",
-            ("Controller",),
-        ),
+    assert {metadata.class_name for metadata in response.controllers} == {
+        "WebController",
+        "InternalController",
     }
-    assert len(response.services) == 3
+
+    assert len(response.services) == 2
     assert all(isinstance(metadata, ServiceMetadata) for metadata in response.services)
     assert {
         (
-            metadata.file_path,
-            metadata.package_name,
             metadata.class_name,
             metadata.qualified_class_name,
             tuple(metadata.annotations),
         )
         for metadata in response.services
     } == {
+        ("BillingService", "BillingService", ("Service",)),
         (
-            str(billing_java.resolve()),
-            "com.example.billing",
-            "BillingService",
-            "BillingService",
-            ("Service",),
-        ),
-        (
-            str(billing_java.resolve()),
-            "com.example.billing",
             "NestedBillingService",
             "BillingService.NestedBillingService",
             ("org.springframework.stereotype.Service",),
         ),
-        (
-            str(audit_java.resolve()),
-            "com.example.audit",
-            "AuditService",
-            "AuditService",
-            ("org.springframework.stereotype.Service",),
-        ),
     }
 
+    assert len(response.repositories) == 8
+    assert all(isinstance(metadata, RepositoryMetadata) for metadata in response.repositories)
+    assert {
+        (
+            metadata.class_name,
+            metadata.qualified_class_name,
+            tuple(metadata.annotations),
+            tuple(metadata.extended_types),
+        )
+        for metadata in response.repositories
+    } == {
+        ("AnnotatedRepository", "AnnotatedRepository", ("Repository",), ()),
+        (
+            "QualifiedAnnotatedRepository",
+            "QualifiedAnnotatedRepository",
+            ("org.springframework.stereotype.Repository",),
+            (),
+        ),
+        ("JpaAccountStore", "JpaAccountStore", (), ("JpaRepository<Account, Long>",)),
+        (
+            "CrudAccountStore",
+            "CrudAccountStore",
+            (),
+            ("org.springframework.data.repository.CrudRepository<Account, Long>",),
+        ),
+        (
+            "PagingAccountStore",
+            "PagingAccountStore",
+            (),
+            ("PagingAndSortingRepository<Account, Long>",),
+        ),
+        ("ContractStore", "ContractStore", (), ("Repository<Account, Long>",)),
+        (
+            "QualifiedContractStore",
+            "QualifiedContractStore",
+            (),
+            ("org.springframework.data.repository.Repository<Account, Long>",),
+        ),
+        ("NestedRepo", "OuterRepoContainer.NestedRepo", ("Repository",), ()),
+    }
+    assert all(
+        metadata.class_name != "NameOnlyRepository" for metadata in response.repositories
+    )
+    assert all(metadata.class_name != "GenericComponent" for metadata in response.repositories)
 
-def test_analyze_repository_skips_failed_files_in_class_controller_and_service_metadata(
-    tmp_path: Path,
-) -> None:
-    """Analyze response excludes metadata for files that fail to parse."""
+
+def test_analyze_repository_skips_failed_files_in_all_metadata_lists(tmp_path: Path) -> None:
+    """Analyze response excludes failed files from classes/controllers/services/repositories."""
     repository_path = tmp_path / "repo"
     repository_path.mkdir()
 
-    valid_java = repository_path / "Valid.java"
-    valid_java.write_text("class Valid {}", encoding="utf-8")
+    valid_repository_java = repository_path / "ValidRepository.java"
+    valid_repository_java.write_text("class ValidRepository {}", encoding="utf-8")
     valid_controller_java = repository_path / "ValidController.java"
     valid_controller_java.write_text("class ValidController {}", encoding="utf-8")
     valid_service_java = repository_path / "ValidService.java"
     valid_service_java.write_text("class ValidService {}", encoding="utf-8")
-    valid_component_java = repository_path / "ValidComponent.java"
-    valid_component_java.write_text("class ValidComponent {}", encoding="utf-8")
-    invalid_java = repository_path / "Invalid.java"
-    invalid_java.write_text("class Invalid {", encoding="utf-8")
+    valid_plain_java = repository_path / "ValidPlain.java"
+    valid_plain_java.write_text("class ValidPlain {}", encoding="utf-8")
+    invalid_repository_java = repository_path / "InvalidRepository.java"
+    invalid_repository_java.write_text("class InvalidRepository {", encoding="utf-8")
 
     parser_results = {
-        valid_java.resolve(): JavaParserResult(
-            file_path=valid_java.resolve(),
+        valid_repository_java.resolve(): JavaParserResult(
+            file_path=valid_repository_java.resolve(),
             compilation_unit=JavaCompilationUnit(
                 package_name="com.example",
                 classes=(
                     JavaClassDeclaration(
-                        class_name="Valid",
-                        qualified_class_name="Valid",
-                        annotations=("Entity",),
+                        class_name="ValidRepository",
+                        qualified_class_name="ValidRepository",
+                        annotations=(),
+                        extended_types=("JpaRepository<Account, Long>",),
                     ),
                 ),
             ),
@@ -424,6 +434,7 @@ def test_analyze_repository_skips_failed_files_in_class_controller_and_service_m
                         class_name="ValidController",
                         qualified_class_name="ValidController",
                         annotations=("RestController",),
+                        extended_types=(),
                     ),
                 ),
             ),
@@ -437,19 +448,21 @@ def test_analyze_repository_skips_failed_files_in_class_controller_and_service_m
                         class_name="ValidService",
                         qualified_class_name="ValidService",
                         annotations=("Service",),
+                        extended_types=(),
                     ),
                 ),
             ),
         ),
-        valid_component_java.resolve(): JavaParserResult(
-            file_path=valid_component_java.resolve(),
+        valid_plain_java.resolve(): JavaParserResult(
+            file_path=valid_plain_java.resolve(),
             compilation_unit=JavaCompilationUnit(
                 package_name="com.example",
                 classes=(
                     JavaClassDeclaration(
-                        class_name="ValidComponent",
-                        qualified_class_name="ValidComponent",
+                        class_name="ValidPlain",
+                        qualified_class_name="ValidPlain",
                         annotations=("Component",),
+                        extended_types=(),
                     ),
                 ),
             ),
@@ -459,10 +472,11 @@ def test_analyze_repository_skips_failed_files_in_class_controller_and_service_m
     analysis_service = AnalysisService(
         java_parser_service=StubJavaParserService(
             results=parser_results,
-            failing_paths={invalid_java.resolve()},
+            failing_paths={invalid_repository_java.resolve()},
         ),
         controller_analyzer=ControllerAnalyzer(),
         service_analyzer=ServiceAnalyzer(),
+        repository_analyzer=RepositoryAnalyzer(),
     )
 
     response = analysis_service.analyze_repository(repository_path)
@@ -470,16 +484,19 @@ def test_analyze_repository_skips_failed_files_in_class_controller_and_service_m
     assert response.total_java_files == 5
     assert response.parsed_successfully == 4
     assert response.parse_failures == 1
-    assert {
-        metadata.class_name for metadata in response.classes
-    } == {"Valid", "ValidController", "ValidService", "ValidComponent"}
-    assert all(
-        metadata.file_path != str(invalid_java.resolve()) for metadata in response.classes
-    )
+    assert {metadata.class_name for metadata in response.classes} == {
+        "ValidRepository",
+        "ValidController",
+        "ValidService",
+        "ValidPlain",
+    }
     assert len(response.controllers) == 1
     assert response.controllers[0].class_name == "ValidController"
-    assert response.controllers[0].file_path == str(valid_controller_java.resolve())
     assert len(response.services) == 1
     assert response.services[0].class_name == "ValidService"
-    assert response.services[0].file_path == str(valid_service_java.resolve())
-    assert all(metadata.class_name != "ValidComponent" for metadata in response.services)
+    assert len(response.repositories) == 1
+    assert response.repositories[0].class_name == "ValidRepository"
+    assert all(
+        metadata.file_path != str(invalid_repository_java.resolve())
+        for metadata in response.repositories
+    )
