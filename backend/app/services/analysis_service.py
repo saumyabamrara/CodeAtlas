@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 from app.analyzers.controller_analyzer import ControllerAnalyzer
+from app.analyzers.service_analyzer import ServiceAnalyzer
 from app.exceptions.repository import (
     InvalidRepositoryPathError,
     JavaParsingError,
@@ -14,6 +15,7 @@ from app.schemas.repositories import (
     JavaClassMetadata,
     RepositoryAnalyzeResponse,
     RepositoryControllersResponse,
+    ServiceMetadata,
 )
 from app.services.java_parser_service import JavaParserService
 
@@ -27,9 +29,11 @@ class AnalysisService:
         self,
         java_parser_service: JavaParserService,
         controller_analyzer: ControllerAnalyzer,
+        service_analyzer: ServiceAnalyzer,
     ) -> None:
         self._java_parser_service = java_parser_service
         self._controller_analyzer = controller_analyzer
+        self._service_analyzer = service_analyzer
 
     def analyze_repository(self, local_path: str | Path) -> RepositoryAnalyzeResponse:
         """Parse every Java file and return aggregate parsing counts."""
@@ -47,6 +51,7 @@ class AnalysisService:
         parse_failures = 0
         classes: list[JavaClassMetadata] = []
         controllers: list[ControllerMetadata] = []
+        services: list[ServiceMetadata] = []
         for java_file in java_files:
             try:
                 parse_result = self._java_parser_service.parse_file(java_file)
@@ -67,6 +72,12 @@ class AnalysisService:
                         compilation_unit=parse_result.compilation_unit,
                     )
                 )
+                services.extend(
+                    self._service_analyzer.analyze(
+                        file_path=str(parse_result.file_path),
+                        compilation_unit=parse_result.compilation_unit,
+                    )
+                )
             except JavaParsingError as error:
                 parse_failures += 1
                 self._log_parse_failure(java_file, error)
@@ -77,6 +88,7 @@ class AnalysisService:
             parse_failures=parse_failures,
             classes=classes,
             controllers=controllers,
+            services=services,
         )
         logger.info(
             "Repository Java parsing analysis completed",

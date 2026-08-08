@@ -68,6 +68,7 @@ class RepositoryAnalyzeResponse(BaseModel):
     parse_failures: int
     classes: list[JavaClassMetadata]
     controllers: list["ControllerMetadata"]
+    services: list["ServiceMetadata"]
 
 
 class ControllerMetadata(BaseModel):
@@ -85,3 +86,13 @@ class RepositoryControllersResponse(BaseModel):
 
     controller_count: int
     controllers: list[ControllerMetadata]
+
+
+class ServiceMetadata(BaseModel):
+    """Metadata for one Spring service class."""
+
+    file_path: str
+    package_name: str
+    class_name: str
+    qualified_class_name: str
+    annotations: list[str]
