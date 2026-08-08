@@ -67,15 +67,17 @@ class RepositoryAnalyzeResponse(BaseModel):
     parsed_successfully: int
     parse_failures: int
     classes: list[JavaClassMetadata]
+    controllers: list["ControllerMetadata"]
 
 
 class ControllerMetadata(BaseModel):
     """Metadata for one Spring controller class."""
 
-    class_name: str
+    file_path: str
     package_name: str
-    fully_qualified_name: str
-    controller_type: str
+    class_name: str
+    qualified_class_name: str
+    annotations: list[str]
 
 
 class RepositoryControllersResponse(BaseModel):

@@ -12,38 +12,33 @@ _CONTROLLER_ANNOTATIONS = {
 class ControllerAnalyzer:
     """Extract Spring controller classes from a parsed Java compilation unit."""
 
-    def analyze(self, compilation_unit: JavaCompilationUnit) -> list[ControllerMetadata]:
+    def analyze(
+        self,
+        *,
+        file_path: str,
+        compilation_unit: JavaCompilationUnit,
+    ) -> list[ControllerMetadata]:
         """Return metadata for classes marked as Spring MVC controllers."""
         controllers: list[ControllerMetadata] = []
         for class_declaration in compilation_unit.classes:
-            controller_type = self._controller_type(class_declaration.annotations)
-            if controller_type is None:
+            if not self._is_controller(class_declaration.annotations):
                 continue
             controllers.append(
                 ControllerMetadata(
+                    file_path=file_path,
                     class_name=class_declaration.class_name,
                     package_name=compilation_unit.package_name,
-                    fully_qualified_name=self._fully_qualified_name(
-                        package_name=compilation_unit.package_name,
-                        qualified_class_name=class_declaration.qualified_class_name,
-                    ),
-                    controller_type=controller_type,
+                    qualified_class_name=class_declaration.qualified_class_name,
+                    annotations=list(class_declaration.annotations),
                 )
             )
         return controllers
 
     @staticmethod
-    def _controller_type(annotations: tuple[str, ...]) -> str | None:
-        """Resolve a Spring controller annotation from an AST declaration."""
+    def _is_controller(annotations: tuple[str, ...]) -> bool:
+        """Return whether a declaration has a Spring controller annotation."""
         for annotation in annotations:
             annotation_name = annotation.rsplit(".", maxsplit=1)[-1]
             if annotation_name in _CONTROLLER_ANNOTATIONS:
-                return _CONTROLLER_ANNOTATIONS[annotation_name]
-        return None
-
-    @staticmethod
-    def _fully_qualified_name(*, package_name: str, qualified_class_name: str) -> str:
-        """Build a fully qualified class name from AST package and type names."""
-        if package_name:
-            return f"{package_name}.{qualified_class_name}"
-        return qualified_class_name
+                return True
+        return False

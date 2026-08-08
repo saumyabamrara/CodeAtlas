@@ -46,6 +46,7 @@ class AnalysisService:
         parsed_successfully = 0
         parse_failures = 0
         classes: list[JavaClassMetadata] = []
+        controllers: list[ControllerMetadata] = []
         for java_file in java_files:
             try:
                 parse_result = self._java_parser_service.parse_file(java_file)
@@ -60,6 +61,12 @@ class AnalysisService:
                     )
                     for class_declaration in parse_result.compilation_unit.classes
                 )
+                controllers.extend(
+                    self._controller_analyzer.analyze(
+                        file_path=str(parse_result.file_path),
+                        compilation_unit=parse_result.compilation_unit,
+                    )
+                )
             except JavaParsingError as error:
                 parse_failures += 1
                 self._log_parse_failure(java_file, error)
@@ -69,6 +76,7 @@ class AnalysisService:
             parsed_successfully=parsed_successfully,
             parse_failures=parse_failures,
             classes=classes,
+            controllers=controllers,
         )
         logger.info(
             "Repository Java parsing analysis completed",
@@ -100,7 +108,12 @@ class AnalysisService:
             except JavaParsingError as error:
                 self._log_parse_failure(java_file, error)
                 continue
-            controllers.extend(self._controller_analyzer.analyze(parse_result.compilation_unit))
+            controllers.extend(
+                self._controller_analyzer.analyze(
+                    file_path=str(parse_result.file_path),
+                    compilation_unit=parse_result.compilation_unit,
+                )
+            )
 
         response = RepositoryControllersResponse(
             controller_count=len(controllers),
