@@ -3,12 +3,17 @@
 import logging
 from pathlib import Path
 
+from app.analyzers.controller_analyzer import ControllerAnalyzer
 from app.exceptions.repository import (
     InvalidRepositoryPathError,
     JavaParsingError,
     RepositoryAnalysisError,
 )
-from app.schemas.repositories import RepositoryAnalyzeResponse
+from app.schemas.repositories import (
+    ControllerMetadata,
+    RepositoryAnalyzeResponse,
+    RepositoryControllersResponse,
+)
 from app.services.java_parser_service import JavaParserService
 
 logger = logging.getLogger(__name__)
@@ -17,8 +22,13 @@ logger = logging.getLogger(__name__)
 class AnalysisService:
     """Discover and parse Java files in a cloned repository."""
 
-    def __init__(self, java_parser_service: JavaParserService) -> None:
+    def __init__(
+        self,
+        java_parser_service: JavaParserService,
+        controller_analyzer: ControllerAnalyzer,
+    ) -> None:
         self._java_parser_service = java_parser_service
+        self._controller_analyzer = controller_analyzer
 
     def analyze_repository(self, local_path: str | Path) -> RepositoryAnalyzeResponse:
         """Parse every Java file and return aggregate parsing counts."""
@@ -40,24 +50,7 @@ class AnalysisService:
                 parsed_successfully += 1
             except JavaParsingError as error:
                 parse_failures += 1
-                parser_error = error.__cause__ or error
-                logger.error(
-                    "Java source file could not be parsed",
-                    extra={
-                        "file_path": java_file,
-                        "exception_type": getattr(
-                            parser_error,
-                            "exception_type",
-                            type(parser_error).__name__,
-                        ),
-                        "exception_message": self._error_message(parser_error),
-                    },
-                    exc_info=(
-                        type(parser_error),
-                        parser_error,
-                        parser_error.__traceback__,
-                    ),
-                )
+                self._log_parse_failure(java_file, error)
 
         response = RepositoryAnalyzeResponse(
             total_java_files=len(java_files),
@@ -71,6 +64,40 @@ class AnalysisService:
                 "total_java_files": response.total_java_files,
                 "parsed_successfully": response.parsed_successfully,
                 "parse_failures": response.parse_failures,
+            },
+        )
+        return response
+
+    def extract_controllers(self, local_path: str | Path) -> RepositoryControllersResponse:
+        """Parse Java files and extract Spring controller class metadata."""
+        repository_path = self._resolve_repository_path(local_path)
+        try:
+            java_files = tuple(self._java_files(repository_path))
+        except OSError as error:
+            logger.exception(
+                "Java file discovery failed",
+                extra={"local_path": repository_path},
+            )
+            raise RepositoryAnalysisError("Unable to discover Java source files.") from error
+
+        controllers: list[ControllerMetadata] = []
+        for java_file in java_files:
+            try:
+                parse_result = self._java_parser_service.parse_file(java_file)
+            except JavaParsingError as error:
+                self._log_parse_failure(java_file, error)
+                continue
+            controllers.extend(self._controller_analyzer.analyze(parse_result.compilation_unit))
+
+        response = RepositoryControllersResponse(
+            controller_count=len(controllers),
+            controllers=controllers,
+        )
+        logger.info(
+            "Repository controller extraction completed",
+            extra={
+                "local_path": repository_path,
+                "controller_count": response.controller_count,
             },
         )
         return response
@@ -98,3 +125,24 @@ class AnalysisService:
     def _error_message(error: Exception) -> str:
         """Return the parser's descriptive message when one is available."""
         return str(error) or str(getattr(error, "description", "")) or repr(error)
+
+    def _log_parse_failure(self, java_file: Path, error: JavaParsingError) -> None:
+        """Log the original JavaParser failure without altering its diagnostics."""
+        parser_error = error.__cause__ or error
+        logger.error(
+            "Java source file could not be parsed",
+            extra={
+                "file_path": java_file,
+                "exception_type": getattr(
+                    parser_error,
+                    "exception_type",
+                    type(parser_error).__name__,
+                ),
+                "exception_message": self._error_message(parser_error),
+            },
+            exc_info=(
+                type(parser_error),
+                parser_error,
+                parser_error.__traceback__,
+            ),
+        )

@@ -56,3 +56,19 @@ class RepositoryAnalyzeResponse(BaseModel):
     total_java_files: int
     parsed_successfully: int
     parse_failures: int
+
+
+class ControllerMetadata(BaseModel):
+    """Metadata for one Spring controller class."""
+
+    class_name: str
+    package_name: str
+    fully_qualified_name: str
+    controller_type: str
+
+
+class RepositoryControllersResponse(BaseModel):
+    """Controller classes extracted from a cloned repository."""
+
+    controller_count: int
+    controllers: list[ControllerMetadata]

@@ -42,6 +42,9 @@ Java source files with `POST /repositories/analyze`. Both endpoints accept:
 }
 ```
 
+Extract Spring controller classes with `POST /repositories/controllers` using the
+same `local_path` request body.
+
 ## Layout
 
 - `main.py` creates the FastAPI application and attaches middleware and routes.

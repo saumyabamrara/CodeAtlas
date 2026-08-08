@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
+from app.analyzers.controller_analyzer import ControllerAnalyzer
 from app.core.config import Settings
 from app.services.analysis_service import AnalysisService
 from app.services.java_parser_service import JavaParserService
@@ -41,7 +42,8 @@ def get_analysis_service(request: Request) -> AnalysisService:
         JavaParserService(
             runner_jar=settings.java_parser_runner_jar,
             java_executable=settings.java_executable,
-        )
+        ),
+        controller_analyzer=ControllerAnalyzer(),
     )
 
 

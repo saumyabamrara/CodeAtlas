@@ -1,5 +1,6 @@
 """Java source parsing through the JavaParser engine."""
 
+import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +13,24 @@ class JavaParserResult:
     """Parser representation for a successfully parsed Java compilation unit."""
 
     file_path: Path
+    compilation_unit: "JavaCompilationUnit"
+
+
+@dataclass(frozen=True)
+class JavaClassDeclaration:
+    """A class declaration represented from a JavaParser compilation unit."""
+
+    class_name: str
+    qualified_class_name: str
+    annotations: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class JavaCompilationUnit:
+    """The JavaParser AST data needed by the first analysis stage."""
+
+    package_name: str
+    classes: tuple[JavaClassDeclaration, ...]
 
 
 class JavaParserEngineError(RuntimeError):
@@ -59,7 +78,16 @@ class JavaParserService:
             raise JavaParsingError(
                 f"Unable to parse Java source file: {source_path.name}."
             ) from engine_error
-        return JavaParserResult(file_path=source_path)
+        try:
+            compilation_unit = self._compilation_unit(completed_process.stdout)
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+            raise JavaParsingError(
+                f"JavaParser returned an invalid AST representation for {source_path.name}."
+            ) from JavaParserEngineError("InvalidJavaParserOutput", str(error))
+        return JavaParserResult(
+            file_path=source_path,
+            compilation_unit=compilation_unit,
+        )
 
     @staticmethod
     def _engine_error(error_output: str) -> JavaParserEngineError:
@@ -68,3 +96,19 @@ class JavaParserService:
         if separator:
             return JavaParserEngineError(exception_type, exception_message)
         return JavaParserEngineError("JavaParserProcessError", error_output.strip())
+
+    @staticmethod
+    def _compilation_unit(parser_output: str) -> JavaCompilationUnit:
+        """Deserialize the compact AST representation emitted by the bridge."""
+        payload = json.loads(parser_output)
+        return JavaCompilationUnit(
+            package_name=payload["package_name"],
+            classes=tuple(
+                JavaClassDeclaration(
+                    class_name=class_declaration["class_name"],
+                    qualified_class_name=class_declaration["qualified_class_name"],
+                    annotations=tuple(class_declaration["annotations"]),
+                )
+                for class_declaration in payload["classes"]
+            ),
+        )

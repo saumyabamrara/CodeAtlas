@@ -17,6 +17,7 @@ from app.exceptions.repository import (
 from app.schemas.repositories import (
     RepositoryAnalyzeRequest,
     RepositoryAnalyzeResponse,
+    RepositoryControllersResponse,
     RepositoryCloneRequest,
     RepositoryCloneResponse,
     RepositoryInspectRequest,
@@ -87,4 +88,24 @@ def analyze_repository(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Repository analysis failed.",
+        ) from error
+
+
+@router.post("/controllers", response_model=RepositoryControllersResponse)
+def extract_controllers(
+    payload: RepositoryAnalyzeRequest,
+    analysis_service: AnalysisServiceDependency,
+) -> RepositoryControllersResponse:
+    """Extract Spring controller classes from a cloned repository."""
+    try:
+        return analysis_service.extract_controllers(payload.local_path)
+    except InvalidRepositoryPathError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except RepositoryAnalysisError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Repository controller extraction failed.",
         ) from error
