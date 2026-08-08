@@ -174,3 +174,54 @@ button:disabled {
   color: #9ed0ff;
   font-size: 0.8rem;
 }
+
+.error-panel {
+  margin-bottom: 16px;
+  border: 1px solid rgba(255, 103, 103, 0.34);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(255, 103, 103, 0.12);
+  color: #ffd0d0;
+}
+
+.result-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.result-item {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.result-item span {
+  color: #8fa8d8;
+  font-size: 0.84rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.result-item strong {
+  color: #f5f7ff;
+  line-height: 1.5;
+}
+
+.result-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.controller-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #f5f7ff;
+}
+
+.controller-list li + li {
+  margin-top: 6px;
+}
