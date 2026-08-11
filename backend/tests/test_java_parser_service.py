@@ -11,7 +11,7 @@ from app.services.java_parser_service import JavaParserService
 
 
 def test_compilation_unit_deserializes_extended_types_and_method_annotations() -> None:
-    """Parser payload includes parent types, class annotation details, and method annotations."""
+    """Parser payload includes method visibility, return type, and parameter metadata."""
     payload = (
         '{"package_name":"com.example",'
         '"classes":[{"class_name":"UserRepository",'
@@ -19,7 +19,9 @@ def test_compilation_unit_deserializes_extended_types_and_method_annotations() -
         '"annotations":["Repository"],'
         '"extended_types":["JpaRepository<User, Long>","Serializable"],'
         '"annotation_details":[{"name":"Repository","value":null,"methods":[]}],'
-        '"methods":[{"method_name":"listUsers","annotations":[{"name":"GetMapping","value":"/users","methods":[]}]}]}]}'
+        '"methods":[{"method_name":"listUsers","visibility":"public","return_type":"List<User>",'
+        '"annotations":[{"name":"GetMapping","value":"/users","methods":[]}],'
+        '"parameters":[{"name":"ownerId","type":"Integer","annotations":[{"name":"PathVariable","value":"ownerId","methods":[]}]}]}]}]}'
     )
 
     compilation_unit = JavaParserService._compilation_unit(payload)
@@ -39,13 +41,21 @@ def test_compilation_unit_deserializes_extended_types_and_method_annotations() -
     assert class_declaration.annotation_details[0].value is None
     assert class_declaration.annotation_details[0].methods == ()
     assert len(class_declaration.methods) == 1
-    assert class_declaration.methods[0].method_name == "listUsers"
-    assert class_declaration.methods[0].annotations[0].name == "GetMapping"
-    assert class_declaration.methods[0].annotations[0].value == "/users"
+    method_declaration = class_declaration.methods[0]
+    assert method_declaration.method_name == "listUsers"
+    assert method_declaration.visibility == "public"
+    assert method_declaration.return_type == "List<User>"
+    assert method_declaration.annotations[0].name == "GetMapping"
+    assert method_declaration.annotations[0].value == "/users"
+    assert len(method_declaration.parameters) == 1
+    assert method_declaration.parameters[0].name == "ownerId"
+    assert method_declaration.parameters[0].type == "Integer"
+    assert method_declaration.parameters[0].annotations[0].name == "PathVariable"
+    assert method_declaration.parameters[0].annotations[0].value == "ownerId"
 
 
-def test_parse_file_raises_when_bridge_output_lacks_feature9_fields(tmp_path: Path) -> None:
-    """Parsing fails loudly when bridge output is missing methods/annotation_details fields."""
+def test_parse_file_raises_when_bridge_output_lacks_feature10_fields(tmp_path: Path) -> None:
+    """Parsing fails loudly when bridge output is missing method-level Feature 10 fields."""
     java_file = tmp_path / "Any.java"
     java_file.write_text("class Any {}", encoding="utf-8")
 
@@ -62,7 +72,8 @@ def test_parse_file_raises_when_bridge_output_lacks_feature9_fields(tmp_path: Pa
             returncode = 0
             stdout = (
                 '{"package_name":"com.example","classes":[{"class_name":"Any",'
-                '"qualified_class_name":"Any","annotations":[],"extended_types":[]}]}'
+                '"qualified_class_name":"Any","annotations":[],"extended_types":[],'
+                '"annotation_details":[],"methods":[{"method_name":"any","annotations":[],"parameters":[]}]}]}'
             )
             stderr = ""
 
@@ -96,6 +107,11 @@ def test_parse_file_reads_petclinic_controller_methods_and_mappings() -> None:
         if class_declaration.class_name == "PetController"
     )
     assert controller_class.methods
+    assert all(
+        method.visibility in {"public", "protected", "private", "package-private"}
+        for method in controller_class.methods
+    )
+    assert all(method.return_type for method in controller_class.methods)
     assert any(
         annotation.name in {"GetMapping", "PostMapping", "PutMapping", "DeleteMapping", "PatchMapping", "RequestMapping"}
         for method in controller_class.methods

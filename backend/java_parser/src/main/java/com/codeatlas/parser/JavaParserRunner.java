@@ -6,6 +6,7 @@ import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
@@ -110,14 +111,46 @@ public final class JavaParserRunner {
                 firstMethod = false;
                 output.append("{\"method_name\":");
                 appendJsonString(output, methodDeclaration.getNameAsString());
+                output.append(",\"visibility\":");
+                appendJsonString(output, methodVisibility(methodDeclaration));
+                output.append(",\"return_type\":");
+                appendJsonString(output, methodDeclaration.getType().toString());
                 output.append(",\"annotations\":[");
                 appendAnnotationsJson(output, extractAnnotations(methodDeclaration.getAnnotations()));
+                output.append("],\"parameters\":[");
+                boolean firstParameter = true;
+                for (Parameter parameter : methodDeclaration.getParameters()) {
+                    if (!firstParameter) {
+                        output.append(',');
+                    }
+                    firstParameter = false;
+                    output.append("{\"name\":");
+                    appendJsonString(output, parameter.getNameAsString());
+                    output.append(",\"type\":");
+                    appendJsonString(output, parameter.getType().toString());
+                    output.append(",\"annotations\":[");
+                    appendAnnotationsJson(output, extractAnnotations(parameter.getAnnotations()));
+                    output.append("]}");
+                }
                 output.append("]}");
             }
             output.append("]}");
         }
         output.append("]}");
         return output.toString();
+    }
+
+    private static String methodVisibility(MethodDeclaration methodDeclaration) {
+        if (methodDeclaration.isPublic()) {
+            return "public";
+        }
+        if (methodDeclaration.isProtected()) {
+            return "protected";
+        }
+        if (methodDeclaration.isPrivate()) {
+            return "private";
+        }
+        return "package-private";
     }
 
     private static void appendAnnotationsJson(StringBuilder output, List<AnnotationData> annotations) {

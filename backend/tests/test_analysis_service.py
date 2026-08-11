@@ -8,15 +8,22 @@ from app.analyzers.repository_analyzer import RepositoryAnalyzer
 from app.analyzers.service_analyzer import ServiceAnalyzer
 from app.exceptions.repository import JavaParsingError
 from app.schemas.repositories import (
+    EndpointMetadata,
+    JavaAnnotationMetadata,
     ControllerMetadata,
     JavaClassMetadata,
+    JavaMethodMetadata,
+    JavaParameterMetadata,
     RepositoryMetadata,
     ServiceMetadata,
 )
 from app.services.analysis_service import AnalysisService
 from app.services.java_parser_service import (
+    JavaAnnotation,
     JavaClassDeclaration,
     JavaCompilationUnit,
+    JavaMethodDeclaration,
+    JavaParameterDeclaration,
     JavaParserResult,
 )
 
@@ -113,12 +120,72 @@ def test_analyze_repository_extracts_class_controller_service_and_repository_met
                         qualified_class_name="WebController",
                         annotations=("RestController",),
                         extended_types=(),
+                        methods=(
+                            JavaMethodDeclaration(
+                                method_name="initCreationForm",
+                                visibility="public",
+                                return_type="String",
+                                annotations=(
+                                    JavaAnnotation(
+                                        name="GetMapping",
+                                        value="/pets/new",
+                                        methods=(),
+                                    ),
+                                ),
+                                parameters=(),
+                            ),
+                            JavaMethodDeclaration(
+                                method_name="processCreationForm",
+                                visibility="package-private",
+                                return_type="String",
+                                annotations=(
+                                    JavaAnnotation(
+                                        name="PostMapping",
+                                        value="/pets/new",
+                                        methods=(),
+                                    ),
+                                ),
+                                parameters=(
+                                    JavaParameterDeclaration(
+                                        name="ownerId",
+                                        type="Integer",
+                                        annotations=(
+                                            JavaAnnotation(
+                                                name="PathVariable",
+                                                value="ownerId",
+                                                methods=(),
+                                            ),
+                                        ),
+                                    ),
+                                    JavaParameterDeclaration(
+                                        name="pet",
+                                        type="Pet",
+                                        annotations=(),
+                                    ),
+                                ),
+                            ),
+                        ),
                     ),
                     JavaClassDeclaration(
                         class_name="InternalController",
                         qualified_class_name="WebController.InternalController",
                         annotations=("Controller",),
                         extended_types=(),
+                        methods=(
+                            JavaMethodDeclaration(
+                                method_name="internalHealth",
+                                visibility="protected",
+                                return_type="void",
+                                annotations=(
+                                    JavaAnnotation(
+                                        name="GetMapping",
+                                        value="/internal",
+                                        methods=(),
+                                    ),
+                                ),
+                                parameters=(),
+                            ),
+                        ),
                     ),
                 ),
             ),
@@ -324,6 +391,58 @@ def test_analyze_repository_extracts_class_controller_service_and_repository_met
     assert response.parse_failures == 0
     assert len(response.classes) == 18
     assert all(isinstance(metadata, JavaClassMetadata) for metadata in response.classes)
+    web_controller_class = next(
+        class_metadata
+        for class_metadata in response.classes
+        if class_metadata.class_name == "WebController"
+    )
+    assert len(web_controller_class.methods) == 2
+    assert all(
+        isinstance(method_metadata, JavaMethodMetadata)
+        for method_metadata in web_controller_class.methods
+    )
+    assert {
+        (
+            method_metadata.method_name,
+            method_metadata.visibility,
+            method_metadata.return_type,
+        )
+        for method_metadata in web_controller_class.methods
+    } == {
+        ("initCreationForm", "public", "String"),
+        ("processCreationForm", "package-private", "String"),
+    }
+    creation_method = next(
+        method_metadata
+        for method_metadata in web_controller_class.methods
+        if method_metadata.method_name == "processCreationForm"
+    )
+    assert all(
+        isinstance(annotation_metadata, JavaAnnotationMetadata)
+        for annotation_metadata in creation_method.annotations
+    )
+    assert all(
+        isinstance(parameter_metadata, JavaParameterMetadata)
+        for parameter_metadata in creation_method.parameters
+    )
+    assert {
+        (
+            parameter_metadata.name,
+            parameter_metadata.type,
+            tuple(
+                (
+                    annotation_metadata.name,
+                    annotation_metadata.value,
+                    tuple(annotation_metadata.methods),
+                )
+                for annotation_metadata in parameter_metadata.annotations
+            ),
+        )
+        for parameter_metadata in creation_method.parameters
+    } == {
+        ("ownerId", "Integer", (("PathVariable", "ownerId", ()),)),
+        ("pet", "Pet", ()),
+    }
 
     assert len(response.controllers) == 2
     assert all(isinstance(metadata, ControllerMetadata) for metadata in response.controllers)
@@ -394,6 +513,21 @@ def test_analyze_repository_extracts_class_controller_service_and_repository_met
         metadata.class_name != "NameOnlyRepository" for metadata in response.repositories
     )
     assert all(metadata.class_name != "GenericComponent" for metadata in response.repositories)
+    assert len(response.endpoints) == 3
+    assert all(isinstance(metadata, EndpointMetadata) for metadata in response.endpoints)
+    assert {
+        (
+            metadata.qualified_controller_class_name,
+            metadata.method_name,
+            metadata.http_method,
+            metadata.path,
+        )
+        for metadata in response.endpoints
+    } == {
+        ("WebController", "initCreationForm", "GET", "/pets/new"),
+        ("WebController", "processCreationForm", "POST", "/pets/new"),
+        ("WebController.InternalController", "internalHealth", "GET", "/internal"),
+    }
 
 
 def test_analyze_repository_skips_failed_files_in_all_metadata_lists(tmp_path: Path) -> None:
@@ -437,6 +571,21 @@ def test_analyze_repository_skips_failed_files_in_all_metadata_lists(tmp_path: P
                         qualified_class_name="ValidController",
                         annotations=("RestController",),
                         extended_types=(),
+                        methods=(
+                            JavaMethodDeclaration(
+                                method_name="health",
+                                visibility="public",
+                                return_type="String",
+                                annotations=(
+                                    JavaAnnotation(
+                                        name="GetMapping",
+                                        value="/health",
+                                        methods=(),
+                                    ),
+                                ),
+                                parameters=(),
+                            ),
+                        ),
                     ),
                 ),
             ),
@@ -499,7 +648,184 @@ def test_analyze_repository_skips_failed_files_in_all_metadata_lists(tmp_path: P
     assert response.services[0].class_name == "ValidService"
     assert len(response.repositories) == 1
     assert response.repositories[0].class_name == "ValidRepository"
+    assert len(response.endpoints) == 1
+    assert response.endpoints[0].method_name == "health"
+    assert response.endpoints[0].path == "/health"
     assert all(
         metadata.file_path != str(invalid_repository_java.resolve())
         for metadata in response.repositories
     )
+    assert all(
+        metadata.file_path != str(invalid_repository_java.resolve())
+        for metadata in response.endpoints
+    )
+
+
+def test_analyze_repository_includes_method_metadata_shapes_and_visibility(tmp_path: Path) -> None:
+    """Class metadata includes detailed method visibility, types, and parameter metadata."""
+    repository_path = tmp_path / "repo"
+    repository_path.mkdir()
+
+    methods_java = repository_path / "MethodShowcase.java"
+    methods_java.write_text("class MethodShowcase {}", encoding="utf-8")
+
+    parser_results = {
+        methods_java.resolve(): JavaParserResult(
+            file_path=methods_java.resolve(),
+            compilation_unit=JavaCompilationUnit(
+                package_name="com.example.methods",
+                classes=(
+                    JavaClassDeclaration(
+                        class_name="MethodShowcase",
+                        qualified_class_name="MethodShowcase",
+                        annotations=(),
+                        methods=(
+                            JavaMethodDeclaration(
+                                method_name="publicVoid",
+                                visibility="public",
+                                return_type="void",
+                                annotations=(),
+                                parameters=(),
+                            ),
+                            JavaMethodDeclaration(
+                                method_name="protectedOwner",
+                                visibility="protected",
+                                return_type="Owner",
+                                annotations=(),
+                                parameters=(),
+                            ),
+                            JavaMethodDeclaration(
+                                method_name="privateOwners",
+                                visibility="private",
+                                return_type="List<Owner>",
+                                annotations=(),
+                                parameters=(),
+                            ),
+                            JavaMethodDeclaration(
+                                method_name="packageScoped",
+                                visibility="package-private",
+                                return_type="String",
+                                annotations=(
+                                    JavaAnnotation(
+                                        name="RequestMapping",
+                                        value="/methods",
+                                        methods=("GET", "POST"),
+                                    ),
+                                ),
+                                parameters=(
+                                    JavaParameterDeclaration(
+                                        name="ownerId",
+                                        type="Integer",
+                                        annotations=(
+                                            JavaAnnotation(
+                                                name="PathVariable",
+                                                value="ownerId",
+                                                methods=(),
+                                            ),
+                                        ),
+                                    ),
+                                    JavaParameterDeclaration(
+                                        name="includeVisits",
+                                        type="boolean",
+                                        annotations=(),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    JavaClassDeclaration(
+                        class_name="NestedType",
+                        qualified_class_name="MethodShowcase.NestedType",
+                        annotations=(),
+                        methods=(
+                            JavaMethodDeclaration(
+                                method_name="nestedMethod",
+                                visibility="public",
+                                return_type="String",
+                                annotations=(),
+                                parameters=(),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    }
+
+    analysis_service = AnalysisService(
+        java_parser_service=StubJavaParserService(results=parser_results),
+        controller_analyzer=ControllerAnalyzer(),
+        service_analyzer=ServiceAnalyzer(),
+        repository_analyzer=RepositoryAnalyzer(),
+        endpoint_analyzer=EndpointAnalyzer(),
+    )
+
+    response = analysis_service.analyze_repository(repository_path)
+
+    assert response.total_java_files == 1
+    assert response.parsed_successfully == 1
+    assert response.parse_failures == 0
+    assert len(response.classes) == 2
+    assert response.controllers == []
+    assert response.services == []
+    assert response.repositories == []
+    assert response.endpoints == []
+
+    showcase = next(
+        class_metadata
+        for class_metadata in response.classes
+        if class_metadata.class_name == "MethodShowcase"
+    )
+    assert {
+        (
+            method_metadata.method_name,
+            method_metadata.visibility,
+            method_metadata.return_type,
+            len(method_metadata.parameters),
+        )
+        for method_metadata in showcase.methods
+    } == {
+        ("publicVoid", "public", "void", 0),
+        ("protectedOwner", "protected", "Owner", 0),
+        ("privateOwners", "private", "List<Owner>", 0),
+        ("packageScoped", "package-private", "String", 2),
+    }
+
+    package_scoped = next(
+        method_metadata
+        for method_metadata in showcase.methods
+        if method_metadata.method_name == "packageScoped"
+    )
+    assert package_scoped.annotations == [
+        JavaAnnotationMetadata(
+            name="RequestMapping",
+            value="/methods",
+            methods=["GET", "POST"],
+        )
+    ]
+    assert package_scoped.parameters == [
+        JavaParameterMetadata(
+            name="ownerId",
+            type="Integer",
+            annotations=[
+                JavaAnnotationMetadata(
+                    name="PathVariable",
+                    value="ownerId",
+                    methods=[],
+                )
+            ],
+        ),
+        JavaParameterMetadata(
+            name="includeVisits",
+            type="boolean",
+            annotations=[],
+        ),
+    ]
+
+    nested_type = next(
+        class_metadata
+        for class_metadata in response.classes
+        if class_metadata.class_name == "NestedType"
+    )
+    assert nested_type.qualified_class_name == "MethodShowcase.NestedType"
+    assert nested_type.methods[0].method_name == "nestedMethod"

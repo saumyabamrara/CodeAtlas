@@ -31,6 +31,18 @@ class JavaMethodDeclaration:
 
     method_name: str
     annotations: tuple[JavaAnnotation, ...]
+    visibility: str
+    return_type: str
+    parameters: tuple["JavaParameterDeclaration", ...]
+
+
+@dataclass(frozen=True)
+class JavaParameterDeclaration:
+    """A method parameter declaration from a JavaParser method."""
+
+    name: str
+    type: str
+    annotations: tuple[JavaAnnotation, ...]
 
 
 @dataclass(frozen=True)
@@ -147,6 +159,23 @@ class JavaParserService:
                                     methods=tuple(annotation.get("methods", ())),
                                 )
                                 for annotation in method["annotations"]
+                            ),
+                            visibility=method["visibility"],
+                            return_type=method["return_type"],
+                            parameters=tuple(
+                                JavaParameterDeclaration(
+                                    name=parameter["name"],
+                                    type=parameter["type"],
+                                    annotations=tuple(
+                                        JavaAnnotation(
+                                            name=annotation["name"],
+                                            value=annotation.get("value"),
+                                            methods=tuple(annotation.get("methods", ())),
+                                        )
+                                        for annotation in parameter["annotations"]
+                                    ),
+                                )
+                                for parameter in method["parameters"]
                             ),
                         )
                         for method in class_declaration["methods"]

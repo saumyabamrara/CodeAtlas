@@ -15,7 +15,10 @@ from app.exceptions.repository import (
 from app.schemas.repositories import (
     ControllerMetadata,
     EndpointMetadata,
+    JavaAnnotationMetadata,
     JavaClassMetadata,
+    JavaMethodMetadata,
+    JavaParameterMetadata,
     RepositoryAnalyzeResponse,
     RepositoryControllersResponse,
     RepositoryMetadata,
@@ -73,6 +76,37 @@ class AnalysisService:
                         class_name=class_declaration.class_name,
                         qualified_class_name=class_declaration.qualified_class_name,
                         annotations=list(class_declaration.annotations),
+                        methods=[
+                            JavaMethodMetadata(
+                                method_name=method_declaration.method_name,
+                                visibility=method_declaration.visibility,
+                                return_type=method_declaration.return_type,
+                                annotations=[
+                                    JavaAnnotationMetadata(
+                                        name=annotation.name,
+                                        value=annotation.value,
+                                        methods=list(annotation.methods),
+                                    )
+                                    for annotation in method_declaration.annotations
+                                ],
+                                parameters=[
+                                    JavaParameterMetadata(
+                                        name=parameter.name,
+                                        type=parameter.type,
+                                        annotations=[
+                                            JavaAnnotationMetadata(
+                                                name=annotation.name,
+                                                value=annotation.value,
+                                                methods=list(annotation.methods),
+                                            )
+                                            for annotation in parameter.annotations
+                                        ],
+                                    )
+                                    for parameter in method_declaration.parameters
+                                ],
+                            )
+                            for method_declaration in class_declaration.methods
+                        ],
                     )
                     for class_declaration in parse_result.compilation_unit.classes
                 )

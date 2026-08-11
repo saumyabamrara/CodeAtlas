@@ -58,6 +58,7 @@ class JavaClassMetadata(BaseModel):
     class_name: str
     qualified_class_name: str
     annotations: list[str]
+    methods: list["JavaMethodMetadata"]
 
 
 class RepositoryAnalyzeResponse(BaseModel):
@@ -121,3 +122,29 @@ class EndpointMetadata(BaseModel):
     method_name: str
     http_method: str | None
     path: str
+
+
+class JavaAnnotationMetadata(BaseModel):
+    """Structured metadata for one Java annotation."""
+
+    name: str
+    value: str | None
+    methods: list[str]
+
+
+class JavaParameterMetadata(BaseModel):
+    """Structured metadata for one Java method parameter."""
+
+    name: str
+    type: str
+    annotations: list[JavaAnnotationMetadata]
+
+
+class JavaMethodMetadata(BaseModel):
+    """Structured metadata for one Java method declaration."""
+
+    method_name: str
+    visibility: str
+    return_type: str
+    annotations: list[JavaAnnotationMetadata]
+    parameters: list[JavaParameterMetadata]
