@@ -70,6 +70,7 @@ class RepositoryAnalyzeResponse(BaseModel):
     controllers: list["ControllerMetadata"]
     services: list["ServiceMetadata"]
     repositories: list["RepositoryMetadata"]
+    endpoints: list["EndpointMetadata"]
 
 
 class ControllerMetadata(BaseModel):
@@ -108,3 +109,15 @@ class RepositoryMetadata(BaseModel):
     qualified_class_name: str
     annotations: list[str]
     extended_types: list[str]
+
+
+class EndpointMetadata(BaseModel):
+    """Metadata for one extracted controller endpoint mapping."""
+
+    file_path: str
+    package_name: str
+    controller_class_name: str
+    qualified_controller_class_name: str
+    method_name: str
+    http_method: str | None
+    path: str

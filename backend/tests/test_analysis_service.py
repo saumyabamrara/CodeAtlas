@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from app.analyzers.controller_analyzer import ControllerAnalyzer
+from app.analyzers.endpoint_analyzer import EndpointAnalyzer
 from app.analyzers.repository_analyzer import RepositoryAnalyzer
 from app.analyzers.service_analyzer import ServiceAnalyzer
 from app.exceptions.repository import JavaParsingError
@@ -313,6 +314,7 @@ def test_analyze_repository_extracts_class_controller_service_and_repository_met
         controller_analyzer=ControllerAnalyzer(),
         service_analyzer=ServiceAnalyzer(),
         repository_analyzer=RepositoryAnalyzer(),
+        endpoint_analyzer=EndpointAnalyzer(),
     )
 
     response = analysis_service.analyze_repository(repository_path)
@@ -477,6 +479,7 @@ def test_analyze_repository_skips_failed_files_in_all_metadata_lists(tmp_path: P
         controller_analyzer=ControllerAnalyzer(),
         service_analyzer=ServiceAnalyzer(),
         repository_analyzer=RepositoryAnalyzer(),
+        endpoint_analyzer=EndpointAnalyzer(),
     )
 
     response = analysis_service.analyze_repository(repository_path)

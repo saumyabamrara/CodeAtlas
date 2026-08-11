@@ -17,13 +17,32 @@ class JavaParserResult:
 
 
 @dataclass(frozen=True)
+class JavaAnnotation:
+    """Structured Java annotation information from a declaration."""
+
+    name: str
+    value: str | None
+    methods: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class JavaMethodDeclaration:
+    """A method declaration represented from a JavaParser class declaration."""
+
+    method_name: str
+    annotations: tuple[JavaAnnotation, ...]
+
+
+@dataclass(frozen=True)
 class JavaClassDeclaration:
     """A class declaration represented from a JavaParser compilation unit."""
 
     class_name: str
     qualified_class_name: str
     annotations: tuple[str, ...]
-    extended_types: tuple[str, ...]
+    extended_types: tuple[str, ...] = ()
+    annotation_details: tuple[JavaAnnotation, ...] = ()
+    methods: tuple[JavaMethodDeclaration, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -110,6 +129,28 @@ class JavaParserService:
                     qualified_class_name=class_declaration["qualified_class_name"],
                     annotations=tuple(class_declaration["annotations"]),
                     extended_types=tuple(class_declaration["extended_types"]),
+                    annotation_details=tuple(
+                        JavaAnnotation(
+                            name=annotation["name"],
+                            value=annotation.get("value"),
+                            methods=tuple(annotation.get("methods", ())),
+                        )
+                        for annotation in class_declaration["annotation_details"]
+                    ),
+                    methods=tuple(
+                        JavaMethodDeclaration(
+                            method_name=method["method_name"],
+                            annotations=tuple(
+                                JavaAnnotation(
+                                    name=annotation["name"],
+                                    value=annotation.get("value"),
+                                    methods=tuple(annotation.get("methods", ())),
+                                )
+                                for annotation in method["annotations"]
+                            ),
+                        )
+                        for method in class_declaration["methods"]
+                    ),
                 )
                 for class_declaration in payload["classes"]
             ),

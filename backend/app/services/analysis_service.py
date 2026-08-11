@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 from app.analyzers.controller_analyzer import ControllerAnalyzer
+from app.analyzers.endpoint_analyzer import EndpointAnalyzer
 from app.analyzers.repository_analyzer import RepositoryAnalyzer
 from app.analyzers.service_analyzer import ServiceAnalyzer
 from app.exceptions.repository import (
@@ -13,6 +14,7 @@ from app.exceptions.repository import (
 )
 from app.schemas.repositories import (
     ControllerMetadata,
+    EndpointMetadata,
     JavaClassMetadata,
     RepositoryAnalyzeResponse,
     RepositoryControllersResponse,
@@ -33,11 +35,13 @@ class AnalysisService:
         controller_analyzer: ControllerAnalyzer,
         service_analyzer: ServiceAnalyzer,
         repository_analyzer: RepositoryAnalyzer,
+        endpoint_analyzer: EndpointAnalyzer,
     ) -> None:
         self._java_parser_service = java_parser_service
         self._controller_analyzer = controller_analyzer
         self._service_analyzer = service_analyzer
         self._repository_analyzer = repository_analyzer
+        self._endpoint_analyzer = endpoint_analyzer
 
     def analyze_repository(self, local_path: str | Path) -> RepositoryAnalyzeResponse:
         """Parse every Java file and return aggregate parsing counts."""
@@ -57,6 +61,7 @@ class AnalysisService:
         controllers: list[ControllerMetadata] = []
         services: list[ServiceMetadata] = []
         repositories: list[RepositoryMetadata] = []
+        endpoints: list[EndpointMetadata] = []
         for java_file in java_files:
             try:
                 parse_result = self._java_parser_service.parse_file(java_file)
@@ -71,12 +76,11 @@ class AnalysisService:
                     )
                     for class_declaration in parse_result.compilation_unit.classes
                 )
-                controllers.extend(
-                    self._controller_analyzer.analyze(
-                        file_path=str(parse_result.file_path),
-                        compilation_unit=parse_result.compilation_unit,
-                    )
+                parsed_controllers = self._controller_analyzer.analyze(
+                    file_path=str(parse_result.file_path),
+                    compilation_unit=parse_result.compilation_unit,
                 )
+                controllers.extend(parsed_controllers)
                 services.extend(
                     self._service_analyzer.analyze(
                         file_path=str(parse_result.file_path),
@@ -87,6 +91,13 @@ class AnalysisService:
                     self._repository_analyzer.analyze(
                         file_path=str(parse_result.file_path),
                         compilation_unit=parse_result.compilation_unit,
+                    )
+                )
+                endpoints.extend(
+                    self._endpoint_analyzer.analyze(
+                        file_path=str(parse_result.file_path),
+                        compilation_unit=parse_result.compilation_unit,
+                        controllers=parsed_controllers,
                     )
                 )
             except JavaParsingError as error:
@@ -101,6 +112,7 @@ class AnalysisService:
             controllers=controllers,
             services=services,
             repositories=repositories,
+            endpoints=endpoints,
         )
         logger.info(
             "Repository Java parsing analysis completed",
