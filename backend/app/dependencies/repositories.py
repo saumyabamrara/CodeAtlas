@@ -15,6 +15,7 @@ from app.services.architecture_graph_service import ArchitectureGraphService
 from app.services.java_parser_service import JavaParserService
 from app.services.repository_service import RepositoryService
 from app.services.repository_inspector import RepositoryInspector
+from app.services.repository_summary_service import RepositorySummaryService
 
 
 def get_repository_service(request: Request) -> RepositoryService:
@@ -70,4 +71,15 @@ def get_architecture_graph_service() -> ArchitectureGraphService:
 ArchitectureGraphServiceDependency = Annotated[
     ArchitectureGraphService,
     Depends(get_architecture_graph_service),
+]
+
+
+def get_repository_summary_service() -> RepositorySummaryService:
+    """Provide the repository summary transformer."""
+    return RepositorySummaryService()
+
+
+RepositorySummaryServiceDependency = Annotated[
+    RepositorySummaryService,
+    Depends(get_repository_summary_service),
 ]

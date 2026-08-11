@@ -7,6 +7,7 @@ from app.dependencies.repositories import (
     ArchitectureGraphServiceDependency,
     RepositoryInspectorDependency,
     RepositoryServiceDependency,
+    RepositorySummaryServiceDependency,
 )
 from app.exceptions.repository import (
     InvalidRepositoryPathError,
@@ -24,6 +25,7 @@ from app.schemas.repositories import (
     RepositoryCloneResponse,
     RepositoryInspectRequest,
     RepositoryInspectResponse,
+    RepositorySummary,
 )
 
 router = APIRouter(prefix="/repositories")
@@ -103,6 +105,30 @@ def build_architecture_graph(
     try:
         analysis = analysis_service.analyze_repository(payload.local_path)
         return graph_service.build_graph(analysis)
+    except InvalidRepositoryPathError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except RepositoryAnalysisError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Repository analysis failed.",
+        ) from error
+
+
+@router.post("/summary", response_model=RepositorySummary)
+def build_repository_summary(
+    payload: RepositoryAnalyzeRequest,
+    analysis_service: AnalysisServiceDependency,
+    graph_service: ArchitectureGraphServiceDependency,
+    summary_service: RepositorySummaryServiceDependency,
+) -> RepositorySummary:
+    """Analyze once and derive a frontend-ready repository summary."""
+    try:
+        analysis = analysis_service.analyze_repository(payload.local_path)
+        graph = graph_service.build_graph(analysis)
+        return summary_service.build_summary(analysis, graph)
     except InvalidRepositoryPathError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

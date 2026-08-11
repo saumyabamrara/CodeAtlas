@@ -187,3 +187,19 @@ class ArchitectureGraph(BaseModel):
 
     nodes: list[GraphNode]
     edges: list[GraphEdge]
+
+
+class RepositorySummary(BaseModel):
+    """Frontend-ready aggregate counts from repository analysis and graph data."""
+
+    total_java_files: int
+    parsed_successfully: int
+    parse_failures: int
+    class_count: int
+    controller_count: int
+    service_count: int
+    repository_count: int
+    endpoint_count: int
+    dependency_count: int
+    graph_node_count: int
+    graph_edge_count: int
