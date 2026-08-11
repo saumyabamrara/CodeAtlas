@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.dependencies.repositories import (
     AnalysisServiceDependency,
     ArchitectureGraphServiceDependency,
+    MethodAnalysisServiceDependency,
     PackageAnalysisServiceDependency,
     RepositoryInspectorDependency,
     RepositoryServiceDependency,
@@ -19,6 +20,7 @@ from app.exceptions.repository import (
 )
 from app.schemas.repositories import (
     ArchitectureGraph,
+    MethodAnalysisResponse,
     PackageAnalysisResponse,
     RepositoryAnalyzeRequest,
     RepositoryAnalyzeResponse,
@@ -153,6 +155,28 @@ def build_package_analysis(
     try:
         analysis = analysis_service.analyze_repository(payload.local_path)
         return package_service.build_package_analysis(analysis)
+    except InvalidRepositoryPathError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except RepositoryAnalysisError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Repository analysis failed.",
+        ) from error
+
+
+@router.post("/methods", response_model=MethodAnalysisResponse)
+def build_method_analysis(
+    payload: RepositoryAnalyzeRequest,
+    analysis_service: AnalysisServiceDependency,
+    method_service: MethodAnalysisServiceDependency,
+) -> MethodAnalysisResponse:
+    """Analyze once and derive method-level navigation metadata."""
+    try:
+        analysis = analysis_service.analyze_repository(payload.local_path)
+        return method_service.build_method_analysis(analysis)
     except InvalidRepositoryPathError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

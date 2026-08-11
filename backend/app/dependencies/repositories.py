@@ -13,6 +13,7 @@ from app.core.config import Settings
 from app.services.analysis_service import AnalysisService
 from app.services.architecture_graph_service import ArchitectureGraphService
 from app.services.java_parser_service import JavaParserService
+from app.services.method_analysis_service import MethodAnalysisService
 from app.services.package_analysis_service import PackageAnalysisService
 from app.services.repository_service import RepositoryService
 from app.services.repository_inspector import RepositoryInspector
@@ -98,4 +99,15 @@ def get_package_analysis_service(
 PackageAnalysisServiceDependency = Annotated[
     PackageAnalysisService,
     Depends(get_package_analysis_service),
+]
+
+
+def get_method_analysis_service() -> MethodAnalysisService:
+    """Provide the method-level metadata transformer."""
+    return MethodAnalysisService()
+
+
+MethodAnalysisServiceDependency = Annotated[
+    MethodAnalysisService,
+    Depends(get_method_analysis_service),
 ]

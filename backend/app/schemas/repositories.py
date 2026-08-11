@@ -255,3 +255,32 @@ class PackageAnalysisResponse(BaseModel):
 
     packages: list[PackageMetadata]
     dependencies: list[PackageDependencyMetadata]
+
+
+class MethodParameterMetadata(BaseModel):
+    """One parameter in frontend-ready method navigation metadata."""
+
+    name: str
+    type: str
+    annotations: list[JavaAnnotationMetadata]
+
+
+class MethodMetadata(BaseModel):
+    """One Java method derived from existing class analysis metadata."""
+
+    file_path: str
+    package_name: str
+    class_name: str
+    qualified_class_name: str
+    method_name: str
+    visibility: str
+    return_type: str
+    parameters: list[MethodParameterMetadata]
+    annotations: list[JavaAnnotationMetadata]
+    scope: SourceScope
+
+
+class MethodAnalysisResponse(BaseModel):
+    """Method-level code navigation metadata for a repository."""
+
+    methods: list[MethodMetadata]
