@@ -1,274 +1,186 @@
 import { useState } from 'react';
 
-type CloneResponse = {
-  repository_name: string;
-  local_path: string;
-  default_branch: string;
-  clone_timestamp: string;
-};
+import { ArchitectureGraph } from './components/ArchitectureGraph';
+import { ComponentList } from './components/ComponentList';
+import { PackageTable } from './components/PackageTable';
+import { RepositoryInput } from './components/RepositoryInput';
+import { SourceBreakdown } from './components/SourceBreakdown';
+import { StatCard } from './components/StatCard';
+import { analyzeRepository } from './services/api';
+import type { DashboardAnalysis } from './types/api';
 
-type InspectResponse = {
-  repository_name: string;
-  primary_language: string;
-  build_tool: string;
-  java_file_count: number;
-  has_src_main_java: boolean;
-  has_pom_xml: boolean;
-  has_gradle_build: boolean;
-  is_spring_boot: boolean;
-  application_class: string | null;
-  detection_reason: string;
-};
-
-type AnalyzeResponse = {
-  total_java_files: number;
-  parsed_successfully: number;
-  parse_failures: number;
-};
-
-type ControllerMetadata = {
-  class_name: string;
-  package_name: string;
-  fully_qualified_name: string;
-  controller_type: string;
-};
-
-type ControllersResponse = {
-  controller_count: number;
-  controllers: ControllerMetadata[];
-};
-
-type AnalysisResult = {
-  repositoryName: string;
-  primaryLanguage: string;
-  buildTool: string;
-  javaFileCount: number;
-  springBootStatus: string;
-  parsedSuccessfully: number;
-  parseFailures: number;
-  controllerCount: number;
-  controllerNames: string[];
-  detectionReason: string;
-};
-
-async function getErrorMessage(response: Response, fallback: string): Promise<string> {
-  try {
-    const payload = await response.json();
-    if (typeof payload === 'string') {
-      return payload;
-    }
-    if (payload && typeof payload === 'object') {
-      const detail = (payload as { detail?: unknown }).detail;
-      if (typeof detail === 'string') {
-        return detail;
-      }
-      if (detail && typeof detail === 'object') {
-        const message = (detail as { message?: unknown }).message;
-        if (typeof message === 'string') {
-          return message;
-        }
-      }
-    }
-  } catch {
-    // Ignore JSON parse issues and fall back to the generic error.
-  }
-  return fallback;
-}
+const GENERIC_ERROR =
+  'Could not analyze this repository. Make sure the CodeAtlas backend is running and the repository path is valid.';
 
 function App() {
-  const [repositoryUrl, setRepositoryUrl] = useState('');
-  const [status, setStatus] = useState('Awaiting repository URL');
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-
-  const canAnalyze = repositoryUrl.trim().length > 0;
+  const [activeView, setActiveView] = useState<'overview' | 'graph'>('overview');
+  const [repositoryPath, setRepositoryPath] = useState('');
+  const [result, setResult] = useState<DashboardAnalysis | null>(null);
+  const [analyzedPath, setAnalyzedPath] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleAnalyze = async () => {
-    if (!canAnalyze) {
-      setStatus('Enter a GitHub repository URL to continue.');
-      setErrorMessage('No repository URL provided.');
-      setAnalysisResult(null);
+    const localPath = repositoryPath.trim();
+    if (!localPath) {
+      setError('Enter a local repository path before starting analysis.');
+      setResult(null);
       return;
     }
 
-    setIsLoading(true);
-    setErrorMessage(null);
-    setAnalysisResult(null);
-    setStatus('Cloning repository...');
-
+    setLoading(true);
+    setError(null);
+    setResult(null);
     try {
-      const cloneResponse = await fetch('http://localhost:8000/repositories/clone', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repository_url: repositoryUrl.trim() }),
-      });
-
-      if (!cloneResponse.ok) {
-        throw new Error(await getErrorMessage(cloneResponse, 'Repository cloning failed.'));
-      }
-
-      const cloneData = (await cloneResponse.json()) as CloneResponse;
-      setStatus('Inspecting repository...');
-
-      const inspectResponse = await fetch('http://localhost:8000/repositories/inspect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ local_path: cloneData.local_path }),
-      });
-
-      if (!inspectResponse.ok) {
-        throw new Error(await getErrorMessage(inspectResponse, 'Repository inspection failed.'));
-      }
-
-      const inspectData = (await inspectResponse.json()) as InspectResponse;
-      setStatus('Analyzing Java files...');
-
-      const analyzeResponse = await fetch('http://localhost:8000/repositories/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ local_path: cloneData.local_path }),
-      });
-
-      if (!analyzeResponse.ok) {
-        throw new Error(await getErrorMessage(analyzeResponse, 'Repository analysis failed.'));
-      }
-
-      const analyzeData = (await analyzeResponse.json()) as AnalyzeResponse;
-      setStatus('Extracting controllers...');
-
-      const controllersResponse = await fetch('http://localhost:8000/repositories/controllers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ local_path: cloneData.local_path }),
-      });
-
-      if (!controllersResponse.ok) {
-        throw new Error(await getErrorMessage(controllersResponse, 'Controller extraction failed.'));
-      }
-
-      const controllersData = (await controllersResponse.json()) as ControllersResponse;
-      setAnalysisResult({
-        repositoryName: inspectData.repository_name,
-        primaryLanguage: inspectData.primary_language,
-        buildTool: inspectData.build_tool,
-        javaFileCount: inspectData.java_file_count,
-        springBootStatus: inspectData.is_spring_boot ? 'Yes' : 'No',
-        parsedSuccessfully: analyzeData.parsed_successfully,
-        parseFailures: analyzeData.parse_failures,
-        controllerCount: controllersData.controller_count,
-        controllerNames: controllersData.controllers.map((controller) => controller.class_name),
-        detectionReason: inspectData.detection_reason,
-      });
-      setStatus('Analysis complete.');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'An unexpected error occurred.';
-      setErrorMessage(message);
-      setStatus('Analysis failed.');
+      const analysis = await analyzeRepository(localPath);
+      setResult(analysis);
+      setAnalyzedPath(localPath);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : GENERIC_ERROR);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  const summary = result?.summary;
+
   return (
     <div className="app-shell">
-      <header className="hero-panel">
-        <div>
-          <p className="eyebrow">Developer tools</p>
-          <h1>CodeAtlas</h1>
-          <p className="hero-copy">
-            Inspect GitHub repositories and surface architecture insights with a focused
-            engineering workflow.
-          </p>
-        </div>
+      <header className="site-header">
+        <a className="brand" href="/" aria-label="CodeAtlas home">
+          <span className="brand-mark">CA</span>
+          <span>CODEATLAS</span>
+        </a>
+        <span className="header-status"><span /> Backend-powered analysis</span>
       </header>
 
-      <main className="workspace-panel">
-        <section className="card">
-          <label className="input-label" htmlFor="repository-url">
-            GitHub repository URL
-          </label>
-          <div className="input-row">
-            <input
-              id="repository-url"
-              type="url"
-              value={repositoryUrl}
-              onChange={(event) => setRepositoryUrl(event.target.value)}
-              placeholder="https://github.com/owner/repository"
-            />
-            <button type="button" onClick={handleAnalyze} disabled={!canAnalyze || isLoading}>
-              {isLoading ? 'Analyzing…' : 'Analyze Repository'}
-            </button>
-          </div>
-
-          <div className="status-area" aria-live="polite">
-            <div className="status-pill">{isLoading ? 'Loading' : 'Ready'}</div>
-            <p>{status}</p>
-          </div>
+      <main>
+        <section className="hero">
+          <p className="eyebrow">Java repository architecture analyzer</p>
+          <h1>Turn a Java codebase into an architecture overview.</h1>
+          <p className="hero-copy">
+            Analyze classes, Spring components, endpoints, dependencies, and package
+            structure from one local repository path.
+          </p>
         </section>
 
-        <section className="card results-card">
-          <div className="results-header">
-            <h2>Analysis results</h2>
-            <span className="results-badge">Live</span>
+        <section className="analysis-console" aria-label="Repository analysis">
+          <div className="console-titlebar">
+            <span className="terminal-dot red" />
+            <span className="terminal-dot amber" />
+            <span className="terminal-dot green" />
+            <code>codeatlas / analyze</code>
           </div>
-          {errorMessage ? <div className="error-panel">{errorMessage}</div> : null}
-          {analysisResult ? (
-            <div className="result-grid">
-              <div className="result-item">
-                <span>Repository name</span>
-                <strong>{analysisResult.repositoryName}</strong>
-              </div>
-              <div className="result-item">
-                <span>Primary language</span>
-                <strong>{analysisResult.primaryLanguage}</strong>
-              </div>
-              <div className="result-item">
-                <span>Build tool</span>
-                <strong>{analysisResult.buildTool}</strong>
-              </div>
-              <div className="result-item">
-                <span>Java file count</span>
-                <strong>{analysisResult.javaFileCount}</strong>
-              </div>
-              <div className="result-item">
-                <span>Spring Boot</span>
-                <strong>{analysisResult.springBootStatus}</strong>
-              </div>
-              <div className="result-item">
-                <span>Parsed successfully</span>
-                <strong>{analysisResult.parsedSuccessfully}</strong>
-              </div>
-              <div className="result-item">
-                <span>Parse failures</span>
-                <strong>{analysisResult.parseFailures}</strong>
-              </div>
-              <div className="result-item">
-                <span>Controller count</span>
-                <strong>{analysisResult.controllerCount}</strong>
-              </div>
-              <div className="result-item full-width">
-                <span>Controller names</span>
-                {analysisResult.controllerNames.length > 0 ? (
-                  <ul className="controller-list">
-                    {analysisResult.controllerNames.map((name) => (
-                      <li key={name}>{name}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <strong>No controllers detected.</strong>
-                )}
-              </div>
-              <div className="result-item full-width">
-                <span>Detection details</span>
-                <strong>{analysisResult.detectionReason}</strong>
+          <RepositoryInput
+            value={repositoryPath}
+            loading={loading}
+            onChange={setRepositoryPath}
+            onSubmit={handleAnalyze}
+          />
+          {loading ? (
+            <div className="loading-state" role="status" aria-live="polite">
+              <span className="loading-spinner" />
+              <div>
+                <strong>Analyzing repository architecture...</strong>
+                <p>Parsing Java metadata and assembling architecture views.</p>
               </div>
             </div>
-          ) : (
-            <p>Enter a GitHub repository URL and click Analyze Repository to inspect the backend response.</p>
-          )}
+          ) : null}
+          {error ? <div className="error-panel" role="alert">{error}</div> : null}
         </section>
+
+        <nav className="view-tabs" aria-label="Analysis views">
+          <button
+            type="button"
+            className={activeView === 'overview' ? 'active' : ''}
+            onClick={() => setActiveView('overview')}
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            className={activeView === 'graph' ? 'active' : ''}
+            onClick={() => setActiveView('graph')}
+          >
+            Architecture Graph
+          </button>
+        </nav>
+
+        {activeView === 'overview' && !result && !loading && !error ? (
+          <section className="empty-state">
+            <span className="empty-icon">{`{ }`}</span>
+            <h2>Your architecture overview starts here</h2>
+            <p>
+              Enter a repository path above. CodeAtlas will send it to the backend and
+              present the existing static-analysis results in this dashboard.
+            </p>
+          </section>
+        ) : null}
+
+        {activeView === 'overview' && result && summary ? (
+          <div className="dashboard" aria-live="polite">
+            <section className="dashboard-intro">
+              <div>
+                <p className="section-kicker">Analysis complete</p>
+                <h2>Repository overview</h2>
+                <code title={analyzedPath}>{analyzedPath}</code>
+              </div>
+              <div className="parse-health">
+                <span className={summary.parse_failures ? 'warning' : 'healthy'} />
+                {summary.parsed_successfully}/{summary.total_java_files} files parsed
+              </div>
+            </section>
+
+            <section className="stat-grid" aria-label="Repository statistics">
+              <StatCard label="Java files" value={summary.total_java_files} detail={`${summary.parse_failures} parse failures`} />
+              <StatCard label="Classes" value={summary.class_count} />
+              <StatCard label="Controllers" value={summary.controller_count} />
+              <StatCard label="Services" value={summary.service_count} />
+              <StatCard label="Repositories" value={summary.repository_count} />
+              <StatCard label="Endpoints" value={summary.endpoint_count} />
+              <StatCard label="Dependencies" value={summary.dependency_count} detail={`${summary.graph_edge_count} resolved graph edges`} />
+              <StatCard label="Packages" value={result.packageAnalysis.packages.length} detail={`${result.packageAnalysis.dependencies.length} package relationships`} />
+            </section>
+
+            <SourceBreakdown summary={summary} />
+            <PackageTable packages={result.packageAnalysis.packages} />
+
+            <div className="component-grid" aria-label="Detected components">
+              <ComponentList
+                eyebrow="Spring web"
+                title="Controllers"
+                items={result.repositoryAnalysis.controllers}
+                emptyMessage="No Spring controllers were detected."
+              />
+              <ComponentList
+                eyebrow="Persistence"
+                title="Repositories"
+                items={result.repositoryAnalysis.repositories}
+                emptyMessage="No Spring repositories were detected."
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {activeView === 'graph' && result ? (
+          <div className="graph-view">
+            <ArchitectureGraph graph={result.architectureGraph} />
+          </div>
+        ) : null}
+
+        {activeView === 'graph' && !result && !loading ? (
+          <section className="empty-state graph-prompt">
+            <span className="empty-icon">{`< >`}</span>
+            <h2>Analyze a repository to explore its architecture.</h2>
+            <p>The production class dependency graph will appear here.</p>
+          </section>
+        ) : null}
       </main>
+
+      <footer>
+        <span>CodeAtlas</span>
+        <span>Static architecture analysis for Java repositories</span>
+      </footer>
     </div>
   );
 }
