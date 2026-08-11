@@ -226,3 +226,32 @@ class RepositorySummary(BaseModel):
     test_class_count: int
     production_dependency_count: int
     test_dependency_count: int
+
+
+class PackageMetadata(BaseModel):
+    """Production and test role counts for one analyzed Java package."""
+
+    package_name: str
+    production_class_count: int
+    test_class_count: int
+    production_controller_count: int
+    test_controller_count: int
+    production_service_count: int
+    test_service_count: int
+    production_repository_count: int
+    test_repository_count: int
+
+
+class PackageDependencyMetadata(BaseModel):
+    """Aggregated production class dependencies between two packages."""
+
+    source_package: str
+    target_package: str
+    dependency_count: int
+
+
+class PackageAnalysisResponse(BaseModel):
+    """Package-level metadata derived from repository analysis."""
+
+    packages: list[PackageMetadata]
+    dependencies: list[PackageDependencyMetadata]

@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.dependencies.repositories import (
     AnalysisServiceDependency,
     ArchitectureGraphServiceDependency,
+    PackageAnalysisServiceDependency,
     RepositoryInspectorDependency,
     RepositoryServiceDependency,
     RepositorySummaryServiceDependency,
@@ -18,6 +19,7 @@ from app.exceptions.repository import (
 )
 from app.schemas.repositories import (
     ArchitectureGraph,
+    PackageAnalysisResponse,
     RepositoryAnalyzeRequest,
     RepositoryAnalyzeResponse,
     RepositoryControllersResponse,
@@ -129,6 +131,28 @@ def build_repository_summary(
         analysis = analysis_service.analyze_repository(payload.local_path)
         graph = graph_service.build_graph(analysis)
         return summary_service.build_summary(analysis, graph)
+    except InvalidRepositoryPathError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except RepositoryAnalysisError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Repository analysis failed.",
+        ) from error
+
+
+@router.post("/packages", response_model=PackageAnalysisResponse)
+def build_package_analysis(
+    payload: RepositoryAnalyzeRequest,
+    analysis_service: AnalysisServiceDependency,
+    package_service: PackageAnalysisServiceDependency,
+) -> PackageAnalysisResponse:
+    """Analyze once and derive package-level architecture metadata."""
+    try:
+        analysis = analysis_service.analyze_repository(payload.local_path)
+        return package_service.build_package_analysis(analysis)
     except InvalidRepositoryPathError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

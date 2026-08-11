@@ -13,6 +13,7 @@ from app.core.config import Settings
 from app.services.analysis_service import AnalysisService
 from app.services.architecture_graph_service import ArchitectureGraphService
 from app.services.java_parser_service import JavaParserService
+from app.services.package_analysis_service import PackageAnalysisService
 from app.services.repository_service import RepositoryService
 from app.services.repository_inspector import RepositoryInspector
 from app.services.repository_summary_service import RepositorySummaryService
@@ -84,4 +85,17 @@ def get_repository_summary_service() -> RepositorySummaryService:
 RepositorySummaryServiceDependency = Annotated[
     RepositorySummaryService,
     Depends(get_repository_summary_service),
+]
+
+
+def get_package_analysis_service(
+    graph_service: ArchitectureGraphServiceDependency,
+) -> PackageAnalysisService:
+    """Provide package analysis using the canonical graph transformer."""
+    return PackageAnalysisService(graph_service)
+
+
+PackageAnalysisServiceDependency = Annotated[
+    PackageAnalysisService,
+    Depends(get_package_analysis_service),
 ]
