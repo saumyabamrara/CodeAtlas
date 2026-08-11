@@ -37,6 +37,7 @@ def _analyze(class_declaration: JavaClassDeclaration):  # type: ignore[no-untype
             package_name="com.example",
             classes=(class_declaration,),
         ),
+        scope="production",
     )
 
 
@@ -72,6 +73,7 @@ def test_extracts_field_and_constructor_dependencies_with_constructor_precedence
     assert all(dependency.file_path == "Example.java" for dependency in dependencies)
     assert all(dependency.package_name == "com.example" for dependency in dependencies)
     assert all(dependency.source_class_name == "OwnerController" for dependency in dependencies)
+    assert all(dependency.source_scope == "production" for dependency in dependencies)
 
 
 def test_dependency_identity_uses_declared_type_not_variable_or_class_name() -> None:

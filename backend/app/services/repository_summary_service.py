@@ -28,4 +28,23 @@ class RepositorySummaryService:
             dependency_count=len(analysis.dependencies),
             graph_node_count=len(graph.nodes),
             graph_edge_count=len(graph.edges),
+            production_java_files=sum(
+                metadata.scope == "production" for metadata in analysis.files
+            ),
+            test_java_files=sum(
+                metadata.scope == "test" for metadata in analysis.files
+            ),
+            production_class_count=sum(
+                metadata.scope == "production" for metadata in analysis.classes
+            ),
+            test_class_count=sum(
+                metadata.scope == "test" for metadata in analysis.classes
+            ),
+            production_dependency_count=sum(
+                metadata.source_scope == "production"
+                for metadata in analysis.dependencies
+            ),
+            test_dependency_count=sum(
+                metadata.source_scope == "test" for metadata in analysis.dependencies
+            ),
         )

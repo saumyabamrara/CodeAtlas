@@ -2,6 +2,7 @@
 
 from app.schemas.repositories import DependencyMetadata
 from app.services.java_parser_service import JavaClassDeclaration, JavaCompilationUnit
+from app.services.source_scope_service import SourceScope
 
 _FIELD_DEPENDENCY = "field"
 _CONSTRUCTOR_DEPENDENCY = "constructor_parameter"
@@ -15,6 +16,7 @@ class DependencyAnalyzer:
         *,
         file_path: str,
         compilation_unit: JavaCompilationUnit,
+        scope: SourceScope,
     ) -> list[DependencyMetadata]:
         """Return one dependency per source class + target type with constructor precedence."""
         dependencies: list[DependencyMetadata] = []
@@ -24,6 +26,7 @@ class DependencyAnalyzer:
                     file_path=file_path,
                     package_name=compilation_unit.package_name,
                     class_declaration=class_declaration,
+                    source_scope=scope,
                 )
             )
         return dependencies
@@ -34,6 +37,7 @@ class DependencyAnalyzer:
         file_path: str,
         package_name: str,
         class_declaration: JavaClassDeclaration,
+        source_scope: SourceScope,
     ) -> list[DependencyMetadata]:
         dependency_kinds: dict[str, str] = {}
 
@@ -58,6 +62,7 @@ class DependencyAnalyzer:
                 source_qualified_class_name=class_declaration.qualified_class_name,
                 target_type=target_type,
                 dependency_kind=dependency_kind,
+                source_scope=source_scope,
             )
             for target_type, dependency_kind in dependency_kinds.items()
         ]

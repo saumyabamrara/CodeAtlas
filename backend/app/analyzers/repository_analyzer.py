@@ -2,6 +2,7 @@
 
 from app.schemas.repositories import RepositoryMetadata
 from app.services.java_parser_service import JavaCompilationUnit
+from app.services.source_scope_service import SourceScope
 
 _REPOSITORY_ANNOTATION = "Repository"
 _REPOSITORY_PARENT_TYPES = {
@@ -20,6 +21,7 @@ class RepositoryAnalyzer:
         *,
         file_path: str,
         compilation_unit: JavaCompilationUnit,
+        scope: SourceScope,
     ) -> list[RepositoryMetadata]:
         """Return metadata for classes/interfaces classified as repositories."""
         repositories: list[RepositoryMetadata] = []
@@ -34,6 +36,7 @@ class RepositoryAnalyzer:
                     qualified_class_name=class_declaration.qualified_class_name,
                     annotations=list(class_declaration.annotations),
                     extended_types=list(class_declaration.extended_types),
+                    scope=scope,
                 )
             )
         return repositories

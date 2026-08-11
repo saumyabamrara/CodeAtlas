@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.services.source_scope_service import SourceScope
+
 
 class RepositoryCloneRequest(BaseModel):
     """Payload used to request cloning a public GitHub repository."""
@@ -60,6 +62,15 @@ class JavaClassMetadata(BaseModel):
     qualified_class_name: str
     annotations: list[str]
     methods: list["JavaMethodMetadata"]
+    scope: SourceScope
+
+
+class JavaFileMetadata(BaseModel):
+    """File-level parsing result and source scope for one analyzed Java file."""
+
+    file_path: str
+    scope: SourceScope
+    parsed_successfully: bool
 
 
 class RepositoryAnalyzeResponse(BaseModel):
@@ -68,6 +79,7 @@ class RepositoryAnalyzeResponse(BaseModel):
     total_java_files: int
     parsed_successfully: int
     parse_failures: int
+    files: list[JavaFileMetadata]
     classes: list[JavaClassMetadata]
     controllers: list["ControllerMetadata"]
     services: list["ServiceMetadata"]
@@ -84,6 +96,7 @@ class ControllerMetadata(BaseModel):
     class_name: str
     qualified_class_name: str
     annotations: list[str]
+    scope: SourceScope
 
 
 class RepositoryControllersResponse(BaseModel):
@@ -101,6 +114,7 @@ class ServiceMetadata(BaseModel):
     class_name: str
     qualified_class_name: str
     annotations: list[str]
+    scope: SourceScope
 
 
 class RepositoryMetadata(BaseModel):
@@ -112,6 +126,7 @@ class RepositoryMetadata(BaseModel):
     qualified_class_name: str
     annotations: list[str]
     extended_types: list[str]
+    scope: SourceScope
 
 
 class EndpointMetadata(BaseModel):
@@ -124,6 +139,7 @@ class EndpointMetadata(BaseModel):
     method_name: str
     http_method: str | None
     path: str
+    scope: SourceScope
 
 
 class JavaAnnotationMetadata(BaseModel):
@@ -161,6 +177,7 @@ class DependencyMetadata(BaseModel):
     source_qualified_class_name: str
     target_type: str
     dependency_kind: str
+    source_scope: SourceScope
 
 
 class GraphNode(BaseModel):
@@ -203,3 +220,9 @@ class RepositorySummary(BaseModel):
     dependency_count: int
     graph_node_count: int
     graph_edge_count: int
+    production_java_files: int
+    test_java_files: int
+    production_class_count: int
+    test_class_count: int
+    production_dependency_count: int
+    test_dependency_count: int

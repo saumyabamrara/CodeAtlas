@@ -8,6 +8,7 @@ from app.schemas.repositories import (
     GraphEdge,
     GraphNode,
     JavaClassMetadata,
+    JavaFileMetadata,
     RepositoryAnalyzeResponse,
     RepositoryMetadata,
     ServiceMetadata,
@@ -23,6 +24,7 @@ def test_build_summary_uses_analysis_and_graph_counts_directly() -> None:
         qualified_class_name="Type",
         annotations=[],
         methods=[],
+        scope="production",
     )
     controller = ControllerMetadata(
         file_path="Controller.java",
@@ -30,6 +32,7 @@ def test_build_summary_uses_analysis_and_graph_counts_directly() -> None:
         class_name="Controller",
         qualified_class_name="Controller",
         annotations=[],
+        scope="production",
     )
     service = ServiceMetadata(
         file_path="Service.java",
@@ -37,6 +40,7 @@ def test_build_summary_uses_analysis_and_graph_counts_directly() -> None:
         class_name="Service",
         qualified_class_name="Service",
         annotations=[],
+        scope="production",
     )
     repository = RepositoryMetadata(
         file_path="Repository.java",
@@ -45,6 +49,7 @@ def test_build_summary_uses_analysis_and_graph_counts_directly() -> None:
         qualified_class_name="Repository",
         annotations=[],
         extended_types=[],
+        scope="production",
     )
     endpoint = EndpointMetadata(
         file_path="Controller.java",
@@ -54,6 +59,7 @@ def test_build_summary_uses_analysis_and_graph_counts_directly() -> None:
         method_name="list",
         http_method="GET",
         path="/items",
+        scope="production",
     )
     dependency = DependencyMetadata(
         file_path="Controller.java",
@@ -62,17 +68,42 @@ def test_build_summary_uses_analysis_and_graph_counts_directly() -> None:
         source_qualified_class_name="Controller",
         target_type="Service",
         dependency_kind="constructor_parameter",
+        source_scope="production",
     )
     analysis = RepositoryAnalyzeResponse(
-        total_java_files=101,
-        parsed_successfully=97,
-        parse_failures=4,
-        classes=[java_class, java_class.model_copy(), java_class.model_copy()],
+        total_java_files=3,
+        parsed_successfully=3,
+        parse_failures=0,
+        files=[
+            JavaFileMetadata(
+                file_path="Type.java",
+                scope="production",
+                parsed_successfully=True,
+            ),
+            JavaFileMetadata(
+                file_path="TypeTests.java",
+                scope="test",
+                parsed_successfully=True,
+            ),
+            JavaFileMetadata(
+                file_path="package-info.java",
+                scope="test",
+                parsed_successfully=True,
+            ),
+        ],
+        classes=[
+            java_class,
+            java_class.model_copy(),
+            java_class.model_copy(update={"file_path": "TypeTests.java", "scope": "test"}),
+        ],
         controllers=[controller],
         services=[service, service.model_copy()],
         repositories=[repository],
         endpoints=[endpoint, endpoint.model_copy(), endpoint.model_copy()],
-        dependencies=[dependency, dependency.model_copy()],
+        dependencies=[
+            dependency,
+            dependency.model_copy(update={"source_scope": "test"}),
+        ],
     )
     node = GraphNode(
         id="com.example.Type",
@@ -95,9 +126,9 @@ def test_build_summary_uses_analysis_and_graph_counts_directly() -> None:
     summary = RepositorySummaryService().build_summary(analysis, graph)
 
     assert summary.model_dump() == {
-        "total_java_files": 101,
-        "parsed_successfully": 97,
-        "parse_failures": 4,
+        "total_java_files": 3,
+        "parsed_successfully": 3,
+        "parse_failures": 0,
         "class_count": 3,
         "controller_count": 1,
         "service_count": 2,
@@ -106,4 +137,10 @@ def test_build_summary_uses_analysis_and_graph_counts_directly() -> None:
         "dependency_count": 2,
         "graph_node_count": 4,
         "graph_edge_count": 3,
+        "production_java_files": 1,
+        "test_java_files": 2,
+        "production_class_count": 2,
+        "test_class_count": 1,
+        "production_dependency_count": 1,
+        "test_dependency_count": 1,
     }

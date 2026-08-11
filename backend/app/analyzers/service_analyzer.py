@@ -2,6 +2,7 @@
 
 from app.schemas.repositories import ServiceMetadata
 from app.services.java_parser_service import JavaCompilationUnit
+from app.services.source_scope_service import SourceScope
 
 _SERVICE_ANNOTATIONS = {
     "Service",
@@ -16,6 +17,7 @@ class ServiceAnalyzer:
         *,
         file_path: str,
         compilation_unit: JavaCompilationUnit,
+        scope: SourceScope,
     ) -> list[ServiceMetadata]:
         """Return metadata for classes marked as Spring services."""
         services: list[ServiceMetadata] = []
@@ -29,6 +31,7 @@ class ServiceAnalyzer:
                     class_name=class_declaration.class_name,
                     qualified_class_name=class_declaration.qualified_class_name,
                     annotations=list(class_declaration.annotations),
+                    scope=scope,
                 )
             )
         return services

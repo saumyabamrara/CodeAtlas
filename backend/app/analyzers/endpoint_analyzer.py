@@ -2,6 +2,7 @@
 
 from app.schemas.repositories import ControllerMetadata, EndpointMetadata
 from app.services.java_parser_service import JavaAnnotation, JavaClassDeclaration, JavaCompilationUnit
+from app.services.source_scope_service import SourceScope
 
 _CLASS_LEVEL_MAPPING = "RequestMapping"
 _METHOD_MAPPINGS = {
@@ -23,6 +24,7 @@ class EndpointAnalyzer:
         file_path: str,
         compilation_unit: JavaCompilationUnit,
         controllers: list[ControllerMetadata],
+        scope: SourceScope,
     ) -> list[EndpointMetadata]:
         """Return endpoint metadata for methods on known controller classes."""
         controller_names = {controller.qualified_class_name for controller in controllers}
@@ -37,6 +39,7 @@ class EndpointAnalyzer:
                     package_name=compilation_unit.package_name,
                     class_declaration=class_declaration,
                     class_paths=class_paths,
+                    scope=scope,
                 )
             )
         return endpoints
@@ -48,6 +51,7 @@ class EndpointAnalyzer:
         package_name: str,
         class_declaration: JavaClassDeclaration,
         class_paths: tuple[str, ...],
+        scope: SourceScope,
     ) -> list[EndpointMetadata]:
         endpoints: list[EndpointMetadata] = []
         for method_declaration in class_declaration.methods:
@@ -66,6 +70,7 @@ class EndpointAnalyzer:
                                 method_name=method_declaration.method_name,
                                 http_method=http_method,
                                 path=self._join_paths(class_path, method_path),
+                                scope=scope,
                             )
                         )
         return endpoints

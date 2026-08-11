@@ -30,6 +30,7 @@ from app.services.java_parser_service import (
     JavaParameterDeclaration,
     JavaParserResult,
 )
+from app.services.source_scope_service import SourceScopeService
 
 
 class StubJavaParserService:
@@ -411,6 +412,7 @@ def test_analyze_repository_extracts_class_controller_service_and_repository_met
         repository_analyzer=RepositoryAnalyzer(),
         endpoint_analyzer=EndpointAnalyzer(),
         dependency_analyzer=DependencyAnalyzer(),
+        source_scope_service=SourceScopeService(),
     )
 
     response = analysis_service.analyze_repository(repository_path)
@@ -567,6 +569,7 @@ def test_analyze_repository_extracts_class_controller_service_and_repository_met
             source_qualified_class_name="WebController",
             target_type="BillingService",
             dependency_kind="constructor_parameter",
+            source_scope="production",
         )
     ]
 
@@ -679,6 +682,7 @@ def test_analyze_repository_skips_failed_files_in_all_metadata_lists(tmp_path: P
         repository_analyzer=RepositoryAnalyzer(),
         endpoint_analyzer=EndpointAnalyzer(),
         dependency_analyzer=DependencyAnalyzer(),
+        source_scope_service=SourceScopeService(),
     )
 
     response = analysis_service.analyze_repository(repository_path)
@@ -815,6 +819,7 @@ def test_analyze_repository_includes_method_metadata_shapes_and_visibility(tmp_p
         repository_analyzer=RepositoryAnalyzer(),
         endpoint_analyzer=EndpointAnalyzer(),
         dependency_analyzer=DependencyAnalyzer(),
+        source_scope_service=SourceScopeService(),
     )
 
     response = analysis_service.analyze_repository(repository_path)
@@ -887,3 +892,132 @@ def test_analyze_repository_includes_method_metadata_shapes_and_visibility(tmp_p
     )
     assert nested_type.qualified_class_name == "MethodShowcase.NestedType"
     assert nested_type.methods[0].method_name == "nestedMethod"
+
+
+def test_analyze_repository_propagates_file_scope_to_all_metadata(tmp_path: Path) -> None:
+    """One path-derived scope is shared by every metadata type from a Java file."""
+    repository_path = tmp_path / "repo"
+    production_java = repository_path / "src" / "main" / "java" / "WebController.java"
+    test_java = repository_path / "src" / "test" / "java" / "TestService.java"
+    classless_test_java = repository_path / "src" / "test" / "java" / "package-info.java"
+    failed_test_java = repository_path / "src" / "test" / "java" / "BrokenTest.java"
+    failed_production_java = repository_path / "src" / "main" / "java" / "Broken.java"
+    production_java.parent.mkdir(parents=True)
+    test_java.parent.mkdir(parents=True)
+    production_java.write_text("class WebController {}", encoding="utf-8")
+    test_java.write_text("class TestService {}", encoding="utf-8")
+    classless_test_java.write_text("package com.example.test;", encoding="utf-8")
+    failed_test_java.write_text("class BrokenTest {", encoding="utf-8")
+    failed_production_java.write_text("class Broken {", encoding="utf-8")
+
+    parser_results = {
+        production_java.resolve(): JavaParserResult(
+            file_path=production_java.resolve(),
+            compilation_unit=JavaCompilationUnit(
+                package_name="com.example.web",
+                classes=(
+                    JavaClassDeclaration(
+                        class_name="WebController",
+                        qualified_class_name="WebController",
+                        annotations=("RestController",),
+                        methods=(
+                            JavaMethodDeclaration(
+                                method_name="index",
+                                visibility="public",
+                                return_type="String",
+                                annotations=(
+                                    JavaAnnotation(
+                                        name="GetMapping",
+                                        value="/",
+                                        methods=(),
+                                    ),
+                                ),
+                                parameters=(),
+                            ),
+                        ),
+                        fields=(
+                            JavaFieldDeclaration(
+                                name="repository",
+                                type="OwnerRepository",
+                                visibility="private",
+                                annotations=(),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        test_java.resolve(): JavaParserResult(
+            file_path=test_java.resolve(),
+            compilation_unit=JavaCompilationUnit(
+                package_name="com.example.test",
+                classes=(
+                    JavaClassDeclaration(
+                        class_name="TestService",
+                        qualified_class_name="TestService",
+                        annotations=("Service",),
+                        extended_types=("Repository<Entity, Long>",),
+                        fields=(
+                            JavaFieldDeclaration(
+                                name="client",
+                                type="ExternalClient",
+                                visibility="private",
+                                annotations=(),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        classless_test_java.resolve(): JavaParserResult(
+            file_path=classless_test_java.resolve(),
+            compilation_unit=JavaCompilationUnit(
+                package_name="com.example.test",
+                classes=(),
+            ),
+        ),
+    }
+    parser_service = StubJavaParserService(
+        results=parser_results,
+        failing_paths={failed_test_java.resolve(), failed_production_java.resolve()},
+    )
+    analysis_service = AnalysisService(
+        java_parser_service=parser_service,
+        controller_analyzer=ControllerAnalyzer(),
+        service_analyzer=ServiceAnalyzer(),
+        repository_analyzer=RepositoryAnalyzer(),
+        endpoint_analyzer=EndpointAnalyzer(),
+        dependency_analyzer=DependencyAnalyzer(),
+        source_scope_service=SourceScopeService(),
+    )
+
+    response = analysis_service.analyze_repository(repository_path)
+
+    assert response.total_java_files == 5
+    assert response.parsed_successfully == 3
+    assert response.parse_failures == 2
+    assert len(response.files) == 5
+    assert {
+        (Path(item.file_path).name, item.scope, item.parsed_successfully)
+        for item in response.files
+    } == {
+        ("WebController.java", "production", True),
+        ("TestService.java", "test", True),
+        ("package-info.java", "test", True),
+        ("BrokenTest.java", "test", False),
+        ("Broken.java", "production", False),
+    }
+    assert {item.class_name: item.scope for item in response.classes} == {
+        "WebController": "production",
+        "TestService": "test",
+    }
+    assert response.controllers[0].scope == "production"
+    assert response.services[0].scope == "test"
+    assert response.repositories[0].scope == "test"
+    assert response.endpoints[0].scope == "production"
+    assert {
+        item.source_class_name: item.source_scope for item in response.dependencies
+    } == {
+        "WebController": "production",
+        "TestService": "test",
+    }

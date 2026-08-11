@@ -6,6 +6,7 @@ from app.dependencies.repositories import get_analysis_service
 from app.schemas.repositories import (
     DependencyMetadata,
     JavaClassMetadata,
+    JavaFileMetadata,
     RepositoryAnalyzeResponse,
 )
 from main import create_application
@@ -26,6 +27,7 @@ class StubAnalysisService:
             qualified_class_name="Source",
             annotations=[],
             methods=[],
+            scope="production",
         )
         target = JavaClassMetadata(
             file_path="Target.java",
@@ -34,11 +36,24 @@ class StubAnalysisService:
             qualified_class_name="Target",
             annotations=[],
             methods=[],
+            scope="production",
         )
         return RepositoryAnalyzeResponse(
             total_java_files=2,
             parsed_successfully=2,
             parse_failures=0,
+            files=[
+                JavaFileMetadata(
+                    file_path="Source.java",
+                    scope="production",
+                    parsed_successfully=True,
+                ),
+                JavaFileMetadata(
+                    file_path="Target.java",
+                    scope="production",
+                    parsed_successfully=True,
+                ),
+            ],
             classes=[source, target],
             controllers=[],
             services=[],
@@ -52,6 +67,7 @@ class StubAnalysisService:
                     source_qualified_class_name="Source",
                     target_type="Target",
                     dependency_kind="field",
+                    source_scope="production",
                 )
             ],
         )

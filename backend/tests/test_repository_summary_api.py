@@ -10,6 +10,7 @@ from app.exceptions.repository import InvalidRepositoryPathError
 from app.schemas.repositories import (
     DependencyMetadata,
     JavaClassMetadata,
+    JavaFileMetadata,
     RepositoryAnalyzeResponse,
 )
 from main import create_application
@@ -35,6 +36,7 @@ class StubAnalysisService:
             qualified_class_name="Source",
             annotations=[],
             methods=[],
+            scope="production",
         )
         target = JavaClassMetadata(
             file_path="Target.java",
@@ -43,11 +45,24 @@ class StubAnalysisService:
             qualified_class_name="Target",
             annotations=[],
             methods=[],
+            scope="production",
         )
         return RepositoryAnalyzeResponse(
             total_java_files=2,
             parsed_successfully=2,
             parse_failures=0,
+            files=[
+                JavaFileMetadata(
+                    file_path="Source.java",
+                    scope="production",
+                    parsed_successfully=True,
+                ),
+                JavaFileMetadata(
+                    file_path="Target.java",
+                    scope="production",
+                    parsed_successfully=True,
+                ),
+            ],
             classes=[source, target],
             controllers=[],
             services=[],
@@ -61,6 +76,7 @@ class StubAnalysisService:
                     source_qualified_class_name="Source",
                     target_type="Target",
                     dependency_kind="field",
+                    source_scope="production",
                 )
             ],
         )
@@ -90,6 +106,12 @@ def test_repository_summary_endpoint_uses_one_analysis_pass() -> None:
         "dependency_count": 1,
         "graph_node_count": 2,
         "graph_edge_count": 1,
+        "production_java_files": 2,
+        "test_java_files": 0,
+        "production_class_count": 2,
+        "test_class_count": 0,
+        "production_dependency_count": 1,
+        "test_dependency_count": 0,
     }
 
 
@@ -132,6 +154,12 @@ def test_repository_summary_endpoint_matches_petclinic_counts() -> None:
         "repository_count": 3,
         "endpoint_count": 17,
         "dependency_count": 67,
-        "graph_node_count": 49,
-        "graph_edge_count": 25,
+        "graph_node_count": 25,
+        "graph_edge_count": 7,
+        "production_java_files": 30,
+        "test_java_files": 19,
+        "production_class_count": 25,
+        "test_class_count": 24,
+        "production_dependency_count": 21,
+        "test_dependency_count": 46,
     }

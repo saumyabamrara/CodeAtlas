@@ -26,6 +26,8 @@ class ArchitectureGraphService:
         roles = self._class_roles(analysis)
         nodes_by_id: dict[str, GraphNode] = {}
         for metadata in analysis.classes:
+            if metadata.scope != "production":
+                continue
             node_id = self._node_id(
                 metadata.package_name,
                 metadata.qualified_class_name,
@@ -47,6 +49,8 @@ class ArchitectureGraphService:
 
         edge_keys: set[tuple[str, str, str]] = set()
         for dependency in analysis.dependencies:
+            if dependency.source_scope != "production":
+                continue
             source_id = self._node_id(
                 dependency.package_name,
                 dependency.source_qualified_class_name,

@@ -19,6 +19,7 @@ from app.schemas.repositories import (
     EndpointMetadata,
     JavaAnnotationMetadata,
     JavaClassMetadata,
+    JavaFileMetadata,
     JavaMethodMetadata,
     JavaParameterMetadata,
     RepositoryAnalyzeResponse,
@@ -27,6 +28,7 @@ from app.schemas.repositories import (
     ServiceMetadata,
 )
 from app.services.java_parser_service import JavaParserService
+from app.services.source_scope_service import SourceScopeService
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,7 @@ class AnalysisService:
         repository_analyzer: RepositoryAnalyzer,
         endpoint_analyzer: EndpointAnalyzer,
         dependency_analyzer: DependencyAnalyzer,
+        source_scope_service: SourceScopeService,
     ) -> None:
         self._java_parser_service = java_parser_service
         self._controller_analyzer = controller_analyzer
@@ -49,6 +52,7 @@ class AnalysisService:
         self._repository_analyzer = repository_analyzer
         self._endpoint_analyzer = endpoint_analyzer
         self._dependency_analyzer = dependency_analyzer
+        self._source_scope_service = source_scope_service
 
     def analyze_repository(self, local_path: str | Path) -> RepositoryAnalyzeResponse:
         """Parse every Java file and return aggregate parsing counts."""
@@ -64,6 +68,7 @@ class AnalysisService:
 
         parsed_successfully = 0
         parse_failures = 0
+        files: list[JavaFileMetadata] = []
         classes: list[JavaClassMetadata] = []
         controllers: list[ControllerMetadata] = []
         services: list[ServiceMetadata] = []
@@ -71,9 +76,17 @@ class AnalysisService:
         endpoints: list[EndpointMetadata] = []
         dependencies: list[DependencyMetadata] = []
         for java_file in java_files:
+            scope = self._source_scope_service.get_scope(java_file)
             try:
                 parse_result = self._java_parser_service.parse_file(java_file)
                 parsed_successfully += 1
+                files.append(
+                    JavaFileMetadata(
+                        file_path=str(parse_result.file_path),
+                        scope=scope,
+                        parsed_successfully=True,
+                    )
+                )
                 classes.extend(
                     JavaClassMetadata(
                         file_path=str(parse_result.file_path),
@@ -112,24 +125,28 @@ class AnalysisService:
                             )
                             for method_declaration in class_declaration.methods
                         ],
+                        scope=scope,
                     )
                     for class_declaration in parse_result.compilation_unit.classes
                 )
                 parsed_controllers = self._controller_analyzer.analyze(
                     file_path=str(parse_result.file_path),
                     compilation_unit=parse_result.compilation_unit,
+                    scope=scope,
                 )
                 controllers.extend(parsed_controllers)
                 services.extend(
                     self._service_analyzer.analyze(
                         file_path=str(parse_result.file_path),
                         compilation_unit=parse_result.compilation_unit,
+                        scope=scope,
                     )
                 )
                 repositories.extend(
                     self._repository_analyzer.analyze(
                         file_path=str(parse_result.file_path),
                         compilation_unit=parse_result.compilation_unit,
+                        scope=scope,
                     )
                 )
                 endpoints.extend(
@@ -137,22 +154,32 @@ class AnalysisService:
                         file_path=str(parse_result.file_path),
                         compilation_unit=parse_result.compilation_unit,
                         controllers=parsed_controllers,
+                        scope=scope,
                     )
                 )
                 dependencies.extend(
                     self._dependency_analyzer.analyze(
                         file_path=str(parse_result.file_path),
                         compilation_unit=parse_result.compilation_unit,
+                        scope=scope,
                     )
                 )
             except JavaParsingError as error:
                 parse_failures += 1
+                files.append(
+                    JavaFileMetadata(
+                        file_path=str(java_file.resolve()),
+                        scope=scope,
+                        parsed_successfully=False,
+                    )
+                )
                 self._log_parse_failure(java_file, error)
 
         response = RepositoryAnalyzeResponse(
             total_java_files=len(java_files),
             parsed_successfully=parsed_successfully,
             parse_failures=parse_failures,
+            files=files,
             classes=classes,
             controllers=controllers,
             services=services,
@@ -185,6 +212,7 @@ class AnalysisService:
 
         controllers: list[ControllerMetadata] = []
         for java_file in java_files:
+            scope = self._source_scope_service.get_scope(java_file)
             try:
                 parse_result = self._java_parser_service.parse_file(java_file)
             except JavaParsingError as error:
@@ -194,6 +222,7 @@ class AnalysisService:
                 self._controller_analyzer.analyze(
                     file_path=str(parse_result.file_path),
                     compilation_unit=parse_result.compilation_unit,
+                    scope=scope,
                 )
             )
 

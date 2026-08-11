@@ -2,6 +2,7 @@
 
 from app.schemas.repositories import ControllerMetadata
 from app.services.java_parser_service import JavaCompilationUnit
+from app.services.source_scope_service import SourceScope
 
 _CONTROLLER_ANNOTATIONS = {
     "RestController": "RestController",
@@ -17,6 +18,7 @@ class ControllerAnalyzer:
         *,
         file_path: str,
         compilation_unit: JavaCompilationUnit,
+        scope: SourceScope,
     ) -> list[ControllerMetadata]:
         """Return metadata for classes marked as Spring MVC controllers."""
         controllers: list[ControllerMetadata] = []
@@ -30,6 +32,7 @@ class ControllerAnalyzer:
                     package_name=compilation_unit.package_name,
                     qualified_class_name=class_declaration.qualified_class_name,
                     annotations=list(class_declaration.annotations),
+                    scope=scope,
                 )
             )
         return controllers

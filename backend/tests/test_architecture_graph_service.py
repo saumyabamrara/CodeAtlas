@@ -4,6 +4,7 @@ from app.schemas.repositories import (
     ControllerMetadata,
     DependencyMetadata,
     JavaClassMetadata,
+    JavaFileMetadata,
     RepositoryAnalyzeResponse,
     RepositoryMetadata,
     ServiceMetadata,
@@ -16,6 +17,7 @@ def _class(
     *,
     package_name: str = "com.example",
     qualified_class_name: str | None = None,
+    scope: str = "production",
 ) -> JavaClassMetadata:
     return JavaClassMetadata(
         file_path=f"{class_name}.java",
@@ -24,6 +26,7 @@ def _class(
         qualified_class_name=qualified_class_name or class_name,
         annotations=[],
         methods=[],
+        scope=scope,
     )
 
 
@@ -39,6 +42,7 @@ def _dependency(
         source_qualified_class_name=source.qualified_class_name,
         target_type=target_type,
         dependency_kind=dependency_kind,
+        source_scope=source.scope,
     )
 
 
@@ -54,6 +58,14 @@ def _analysis(
         total_java_files=len(classes),
         parsed_successfully=len(classes),
         parse_failures=0,
+        files=[
+            JavaFileMetadata(
+                file_path=metadata.file_path,
+                scope=metadata.scope,
+                parsed_successfully=True,
+            )
+            for metadata in classes
+        ],
         classes=classes,
         controllers=controllers or [],
         services=services or [],
@@ -189,3 +201,26 @@ def test_build_graph_source_resolution_uses_package_and_qualified_class_name() -
     assert len(graph.edges) == 1
     assert graph.edges[0].source == "com.source.Outer.Inner"
     assert graph.edges[0].target == "com.target.Target"
+
+
+def test_build_graph_excludes_test_nodes_and_test_source_dependencies() -> None:
+    production_source = _class("ProductionSource")
+    production_target = _class("ProductionTarget", package_name="com.target")
+    test_source = _class("TestSource", scope="test")
+
+    graph = ArchitectureGraphService().build_graph(
+        _analysis(
+            classes=[production_source, production_target, test_source],
+            dependencies=[
+                _dependency(production_source, "ProductionTarget"),
+                _dependency(test_source, "ProductionTarget"),
+            ],
+        )
+    )
+
+    assert {node.id for node in graph.nodes} == {
+        "com.example.ProductionSource",
+        "com.target.ProductionTarget",
+    }
+    assert len(graph.edges) == 1
+    assert graph.edges[0].source == "com.example.ProductionSource"

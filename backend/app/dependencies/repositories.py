@@ -16,6 +16,7 @@ from app.services.java_parser_service import JavaParserService
 from app.services.repository_service import RepositoryService
 from app.services.repository_inspector import RepositoryInspector
 from app.services.repository_summary_service import RepositorySummaryService
+from app.services.source_scope_service import SourceScopeService
 
 
 def get_repository_service(request: Request) -> RepositoryService:
@@ -54,6 +55,7 @@ def get_analysis_service(request: Request) -> AnalysisService:
         repository_analyzer=RepositoryAnalyzer(),
         endpoint_analyzer=EndpointAnalyzer(),
         dependency_analyzer=DependencyAnalyzer(),
+        source_scope_service=SourceScopeService(),
     )
 
 
