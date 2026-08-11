@@ -79,6 +79,13 @@ export interface RepositoryAnalysis {
   repositories: ComponentMetadata[];
 }
 
+export interface UnifiedRepositoryAnalysisResponse {
+  analysis: RepositoryAnalysis;
+  summary: RepositorySummary;
+  packages: PackageAnalysisResponse;
+  graph: ArchitectureGraphResponse;
+}
+
 export interface DashboardAnalysis {
   summary: RepositorySummary;
   packageAnalysis: PackageAnalysisResponse;

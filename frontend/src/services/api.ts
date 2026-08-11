@@ -1,10 +1,7 @@
 import type {
-  ArchitectureGraphResponse,
   DashboardAnalysis,
-  PackageAnalysisResponse,
-  RepositoryAnalysis,
   RepositoryAnalyzeRequest,
-  RepositorySummary,
+  UnifiedRepositoryAnalysisResponse,
 } from '../types/api';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000').replace(
@@ -55,28 +52,27 @@ async function post<T>(
 
 export async function analyzeRepository(localPath: string): Promise<DashboardAnalysis> {
   const request: RepositoryAnalyzeRequest = { local_path: localPath };
-  const [summary, packageAnalysis, repositoryAnalysis, architectureGraph] = await Promise.all([
-    post<RepositorySummary>('/repositories/summary', request),
-    post<PackageAnalysisResponse>('/repositories/packages', request),
-    post<RepositoryAnalysis>('/repositories/analyze', request),
-    post<ArchitectureGraphResponse>(
-      '/repositories/graph',
-      request,
-      GRAPH_ERROR,
-    ),
-  ]);
+  const response = await post<UnifiedRepositoryAnalysisResponse>(
+    '/repositories/analyze-all',
+    request,
+  );
 
   if (
-    typeof summary.total_java_files !== 'number' ||
-    !Array.isArray(packageAnalysis.packages) ||
-    !Array.isArray(repositoryAnalysis.controllers) ||
-    !Array.isArray(repositoryAnalysis.repositories)
+    typeof response.summary.total_java_files !== 'number' ||
+    !Array.isArray(response.packages.packages) ||
+    !Array.isArray(response.analysis.controllers) ||
+    !Array.isArray(response.analysis.repositories)
   ) {
     throw new Error('The backend returned an unexpected analysis response.');
   }
-  if (!Array.isArray(architectureGraph.nodes) || !Array.isArray(architectureGraph.edges)) {
+  if (!Array.isArray(response.graph.nodes) || !Array.isArray(response.graph.edges)) {
     throw new Error(GRAPH_ERROR);
   }
 
-  return { summary, packageAnalysis, repositoryAnalysis, architectureGraph };
+  return {
+    summary: response.summary,
+    packageAnalysis: response.packages,
+    repositoryAnalysis: response.analysis,
+    architectureGraph: response.graph,
+  };
 }
