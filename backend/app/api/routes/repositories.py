@@ -22,6 +22,7 @@ from app.schemas.repositories import (
     ArchitectureGraph,
     MethodAnalysisResponse,
     PackageAnalysisResponse,
+    RepositoryAnalyzeAllResponse,
     RepositoryAnalyzeRequest,
     RepositoryAnalyzeResponse,
     RepositoryControllersResponse,
@@ -87,6 +88,36 @@ def analyze_repository(
     """Parse all Java source files in a cloned repository."""
     try:
         return analysis_service.analyze_repository(payload.local_path)
+    except InvalidRepositoryPathError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except RepositoryAnalysisError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Repository analysis failed.",
+        ) from error
+
+
+@router.post("/analyze-all", response_model=RepositoryAnalyzeAllResponse)
+def analyze_repository_all(
+    payload: RepositoryAnalyzeRequest,
+    analysis_service: AnalysisServiceDependency,
+    graph_service: ArchitectureGraphServiceDependency,
+    summary_service: RepositorySummaryServiceDependency,
+    package_service: PackageAnalysisServiceDependency,
+) -> RepositoryAnalyzeAllResponse:
+    """Analyze once and derive all data used by the repository dashboard."""
+    try:
+        analysis = analysis_service.analyze_repository(payload.local_path)
+        graph = graph_service.build_graph(analysis)
+        return RepositoryAnalyzeAllResponse(
+            analysis=analysis,
+            summary=summary_service.build_summary(analysis, graph),
+            packages=package_service.build_package_analysis(analysis),
+            graph=graph,
+        )
     except InvalidRepositoryPathError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

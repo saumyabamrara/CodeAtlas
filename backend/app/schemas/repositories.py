@@ -257,6 +257,15 @@ class PackageAnalysisResponse(BaseModel):
     dependencies: list[PackageDependencyMetadata]
 
 
+class RepositoryAnalyzeAllResponse(BaseModel):
+    """Complete dashboard data derived from one repository analysis pass."""
+
+    analysis: RepositoryAnalyzeResponse
+    summary: RepositorySummary
+    packages: PackageAnalysisResponse
+    graph: ArchitectureGraph
+
+
 class MethodParameterMetadata(BaseModel):
     """One parameter in frontend-ready method navigation metadata."""
 
