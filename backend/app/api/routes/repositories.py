@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.dependencies.repositories import (
     AnalysisServiceDependency,
+    ArchitectureGraphServiceDependency,
     RepositoryInspectorDependency,
     RepositoryServiceDependency,
 )
@@ -15,6 +16,7 @@ from app.exceptions.repository import (
     RepositoryInspectionError,
 )
 from app.schemas.repositories import (
+    ArchitectureGraph,
     RepositoryAnalyzeRequest,
     RepositoryAnalyzeResponse,
     RepositoryControllersResponse,
@@ -79,6 +81,28 @@ def analyze_repository(
     """Parse all Java source files in a cloned repository."""
     try:
         return analysis_service.analyze_repository(payload.local_path)
+    except InvalidRepositoryPathError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error
+    except RepositoryAnalysisError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Repository analysis failed.",
+        ) from error
+
+
+@router.post("/graph", response_model=ArchitectureGraph)
+def build_architecture_graph(
+    payload: RepositoryAnalyzeRequest,
+    analysis_service: AnalysisServiceDependency,
+    graph_service: ArchitectureGraphServiceDependency,
+) -> ArchitectureGraph:
+    """Analyze a repository once and transform the result into a graph."""
+    try:
+        analysis = analysis_service.analyze_repository(payload.local_path)
+        return graph_service.build_graph(analysis)
     except InvalidRepositoryPathError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

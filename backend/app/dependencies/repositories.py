@@ -11,6 +11,7 @@ from app.analyzers.repository_analyzer import RepositoryAnalyzer
 from app.analyzers.service_analyzer import ServiceAnalyzer
 from app.core.config import Settings
 from app.services.analysis_service import AnalysisService
+from app.services.architecture_graph_service import ArchitectureGraphService
 from app.services.java_parser_service import JavaParserService
 from app.services.repository_service import RepositoryService
 from app.services.repository_inspector import RepositoryInspector
@@ -58,4 +59,15 @@ def get_analysis_service(request: Request) -> AnalysisService:
 AnalysisServiceDependency = Annotated[
     AnalysisService,
     Depends(get_analysis_service),
+]
+
+
+def get_architecture_graph_service() -> ArchitectureGraphService:
+    """Provide the repository-analysis graph transformer."""
+    return ArchitectureGraphService()
+
+
+ArchitectureGraphServiceDependency = Annotated[
+    ArchitectureGraphService,
+    Depends(get_architecture_graph_service),
 ]

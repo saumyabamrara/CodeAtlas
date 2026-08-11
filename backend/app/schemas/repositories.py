@@ -1,6 +1,7 @@
 """Request and response schemas for repository operations."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -160,3 +161,29 @@ class DependencyMetadata(BaseModel):
     source_qualified_class_name: str
     target_type: str
     dependency_kind: str
+
+
+class GraphNode(BaseModel):
+    """One analyzed Java class represented as an architecture graph node."""
+
+    id: str
+    label: str
+    node_type: Literal["class", "controller", "service", "repository"]
+    file_path: str
+    package_name: str
+    qualified_class_name: str
+
+
+class GraphEdge(BaseModel):
+    """One relationship between two architecture graph nodes."""
+
+    source: str
+    target: str
+    edge_type: Literal["DEPENDS_ON"]
+
+
+class ArchitectureGraph(BaseModel):
+    """Canonical graph derived from repository analysis metadata."""
+
+    nodes: list[GraphNode]
+    edges: list[GraphEdge]
