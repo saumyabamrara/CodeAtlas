@@ -21,7 +21,12 @@ def test_compilation_unit_deserializes_extended_types_and_method_annotations() -
         '"annotation_details":[{"name":"Repository","value":null,"methods":[]}],'
         '"methods":[{"method_name":"listUsers","visibility":"public","return_type":"List<User>",'
         '"annotations":[{"name":"GetMapping","value":"/users","methods":[]}],'
-        '"parameters":[{"name":"ownerId","type":"Integer","annotations":[{"name":"PathVariable","value":"ownerId","methods":[]}]}]}]}]}'
+        '"parameters":[{"name":"ownerId","type":"Integer","annotations":[{"name":"PathVariable","value":"ownerId","methods":[]}]}]}],'
+        '"fields":[{"name":"owners","type":"List<Owner>","visibility":"private",'
+        '"annotations":[{"name":"Autowired","value":null,"methods":[]}]}],'
+        '"constructors":[{"visibility":"package-private",'
+        '"annotations":[{"name":"Inject","value":null,"methods":[]}],'
+        '"parameters":[{"name":"ownerService","type":"OwnerService","annotations":[]}]}]}]}'
     )
 
     compilation_unit = JavaParserService._compilation_unit(payload)
@@ -52,6 +57,16 @@ def test_compilation_unit_deserializes_extended_types_and_method_annotations() -
     assert method_declaration.parameters[0].type == "Integer"
     assert method_declaration.parameters[0].annotations[0].name == "PathVariable"
     assert method_declaration.parameters[0].annotations[0].value == "ownerId"
+    assert len(class_declaration.fields) == 1
+    assert class_declaration.fields[0].name == "owners"
+    assert class_declaration.fields[0].type == "List<Owner>"
+    assert class_declaration.fields[0].visibility == "private"
+    assert class_declaration.fields[0].annotations[0].name == "Autowired"
+    assert len(class_declaration.constructors) == 1
+    assert class_declaration.constructors[0].visibility == "package-private"
+    assert class_declaration.constructors[0].annotations[0].name == "Inject"
+    assert class_declaration.constructors[0].parameters[0].name == "ownerService"
+    assert class_declaration.constructors[0].parameters[0].type == "OwnerService"
 
 
 def test_parse_file_raises_when_bridge_output_lacks_feature10_fields(tmp_path: Path) -> None:
@@ -82,6 +97,101 @@ def test_parse_file_raises_when_bridge_output_lacks_feature10_fields(tmp_path: P
     with patch("subprocess.run", side_effect=run):
         with pytest.raises(JavaParsingError):
             parser_service.parse_file(java_file)
+
+
+@pytest.mark.parametrize(
+    "class_fragment",
+    [
+        '"constructors":[]',
+        '"fields":[]',
+        '"fields":[],"constructors":[{"visibility":"public","annotations":[]}]',
+    ],
+)
+def test_parse_file_raises_when_bridge_output_lacks_feature11_fields(
+    tmp_path: Path,
+    class_fragment: str,
+) -> None:
+    """Feature 11 class arrays and constructor parameters are required."""
+    java_file = tmp_path / "Any.java"
+    java_file.write_text("class Any {}", encoding="utf-8")
+
+    class StubParserService(JavaParserService):
+        def __init__(self) -> None:
+            self._runner_jar = java_file
+            self._java_executable = "java"
+
+    payload = (
+        '{"package_name":"com.example","classes":[{"class_name":"Any",'
+        '"qualified_class_name":"Any","annotations":[],"extended_types":[],'
+        '"annotation_details":[],"methods":[],'
+        f'{class_fragment}'
+        "]}]}"
+    )
+
+    def run(*args, **kwargs):  # type: ignore[no-untyped-def]
+        class Result:
+            returncode = 0
+            stdout = payload
+            stderr = ""
+
+        return Result()
+
+    with patch("subprocess.run", side_effect=run):
+        with pytest.raises(JavaParsingError):
+            StubParserService().parse_file(java_file)
+
+
+def test_parse_file_extracts_fields_and_constructors_from_java_bridge(tmp_path: Path) -> None:
+    """The built Java bridge preserves declarations, visibility, annotations, and types."""
+    java_file = tmp_path / "DependencyShowcase.java"
+    java_file.write_text(
+        """
+        package com.example;
+
+        @interface Inject {}
+        @interface Marker {}
+
+        class DependencyShowcase {
+            @Marker private final OwnerService ownerService = null;
+            protected Repository repository;
+            String first, second;
+
+            @Inject DependencyShowcase(OwnerService ownerService) {}
+            protected DependencyShowcase(Repository repository, @Marker Cache cache) {}
+            public DependencyShowcase() {}
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    settings = Settings()
+    result = JavaParserService(
+        settings.java_parser_runner_jar,
+        settings.java_executable,
+    ).parse_file(java_file)
+    declaration = next(
+        item for item in result.compilation_unit.classes
+        if item.class_name == "DependencyShowcase"
+    )
+
+    assert [(field.name, field.type, field.visibility) for field in declaration.fields] == [
+        ("ownerService", "OwnerService", "private"),
+        ("repository", "Repository", "protected"),
+        ("first", "String", "package-private"),
+        ("second", "String", "package-private"),
+    ]
+    assert declaration.fields[0].annotations[0].name == "Marker"
+    assert [constructor.visibility for constructor in declaration.constructors] == [
+        "package-private",
+        "protected",
+        "public",
+    ]
+    assert declaration.constructors[0].annotations[0].name == "Inject"
+    assert [
+        (parameter.name, parameter.type)
+        for parameter in declaration.constructors[1].parameters
+    ] == [("repository", "Repository"), ("cache", "Cache")]
+    assert declaration.constructors[1].parameters[1].annotations[0].name == "Marker"
 
 
 def test_parse_file_reads_petclinic_controller_methods_and_mappings() -> None:

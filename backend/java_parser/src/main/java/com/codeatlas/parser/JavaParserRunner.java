@@ -5,8 +5,11 @@ import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.ConstructorDeclaration;
+import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
@@ -112,7 +115,7 @@ public final class JavaParserRunner {
                 output.append("{\"method_name\":");
                 appendJsonString(output, methodDeclaration.getNameAsString());
                 output.append(",\"visibility\":");
-                appendJsonString(output, methodVisibility(methodDeclaration));
+                appendJsonString(output, declarationVisibility(methodDeclaration));
                 output.append(",\"return_type\":");
                 appendJsonString(output, methodDeclaration.getType().toString());
                 output.append(",\"annotations\":[");
@@ -134,20 +137,67 @@ public final class JavaParserRunner {
                 }
                 output.append("]}");
             }
+            output.append("],\"fields\":[");
+            boolean firstField = true;
+            for (FieldDeclaration fieldDeclaration : declaration.getFields()) {
+                for (VariableDeclarator variableDeclarator : fieldDeclaration.getVariables()) {
+                    if (!firstField) {
+                        output.append(',');
+                    }
+                    firstField = false;
+                    output.append("{\"name\":");
+                    appendJsonString(output, variableDeclarator.getNameAsString());
+                    output.append(",\"type\":");
+                    appendJsonString(output, variableDeclarator.getType().toString());
+                    output.append(",\"visibility\":");
+                    appendJsonString(output, declarationVisibility(fieldDeclaration));
+                    output.append(",\"annotations\":[");
+                    appendAnnotationsJson(output, extractAnnotations(fieldDeclaration.getAnnotations()));
+                    output.append("]}");
+                }
+            }
+            output.append("],\"constructors\":[");
+            boolean firstConstructor = true;
+            for (ConstructorDeclaration constructorDeclaration : declaration.getConstructors()) {
+                if (!firstConstructor) {
+                    output.append(',');
+                }
+                firstConstructor = false;
+                output.append("{\"visibility\":");
+                appendJsonString(output, declarationVisibility(constructorDeclaration));
+                output.append(",\"annotations\":[");
+                appendAnnotationsJson(output, extractAnnotations(constructorDeclaration.getAnnotations()));
+                output.append("],\"parameters\":[");
+                boolean firstConstructorParameter = true;
+                for (Parameter parameter : constructorDeclaration.getParameters()) {
+                    if (!firstConstructorParameter) {
+                        output.append(',');
+                    }
+                    firstConstructorParameter = false;
+                    output.append("{\"name\":");
+                    appendJsonString(output, parameter.getNameAsString());
+                    output.append(",\"type\":");
+                    appendJsonString(output, parameter.getType().toString());
+                    output.append(",\"annotations\":[");
+                    appendAnnotationsJson(output, extractAnnotations(parameter.getAnnotations()));
+                    output.append("]}");
+                }
+                output.append("]}");
+            }
             output.append("]}");
         }
         output.append("]}");
         return output.toString();
     }
 
-    private static String methodVisibility(MethodDeclaration methodDeclaration) {
-        if (methodDeclaration.isPublic()) {
+    private static String declarationVisibility(com.github.javaparser.ast.nodeTypes.modifiers.NodeWithAccessModifiers<?> declaration) {
+        if (declaration.isPublic()) {
             return "public";
         }
-        if (methodDeclaration.isProtected()) {
+        if (declaration.isProtected()) {
             return "protected";
         }
-        if (methodDeclaration.isPrivate()) {
+        if (declaration.isPrivate()) {
             return "private";
         }
         return "package-private";

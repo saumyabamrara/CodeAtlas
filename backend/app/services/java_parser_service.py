@@ -38,7 +38,7 @@ class JavaMethodDeclaration:
 
 @dataclass(frozen=True)
 class JavaParameterDeclaration:
-    """A method parameter declaration from a JavaParser method."""
+    """A method or constructor parameter declaration from JavaParser."""
 
     name: str
     type: str
@@ -55,6 +55,27 @@ class JavaClassDeclaration:
     extended_types: tuple[str, ...] = ()
     annotation_details: tuple[JavaAnnotation, ...] = ()
     methods: tuple[JavaMethodDeclaration, ...] = ()
+    fields: tuple["JavaFieldDeclaration", ...] = ()
+    constructors: tuple["JavaConstructorDeclaration", ...] = ()
+
+
+@dataclass(frozen=True)
+class JavaFieldDeclaration:
+    """A class field declaration represented from JavaParser."""
+
+    name: str
+    type: str
+    visibility: str
+    annotations: tuple[JavaAnnotation, ...]
+
+
+@dataclass(frozen=True)
+class JavaConstructorDeclaration:
+    """A constructor declaration represented from JavaParser."""
+
+    visibility: str
+    annotations: tuple[JavaAnnotation, ...]
+    parameters: tuple[JavaParameterDeclaration, ...]
 
 
 @dataclass(frozen=True)
@@ -179,6 +200,51 @@ class JavaParserService:
                             ),
                         )
                         for method in class_declaration["methods"]
+                    ),
+                    fields=tuple(
+                        JavaFieldDeclaration(
+                            name=field["name"],
+                            type=field["type"],
+                            visibility=field["visibility"],
+                            annotations=tuple(
+                                JavaAnnotation(
+                                    name=annotation["name"],
+                                    value=annotation.get("value"),
+                                    methods=tuple(annotation.get("methods", ())),
+                                )
+                                for annotation in field["annotations"]
+                            ),
+                        )
+                        for field in class_declaration["fields"]
+                    ),
+                    constructors=tuple(
+                        JavaConstructorDeclaration(
+                            visibility=constructor["visibility"],
+                            annotations=tuple(
+                                JavaAnnotation(
+                                    name=annotation["name"],
+                                    value=annotation.get("value"),
+                                    methods=tuple(annotation.get("methods", ())),
+                                )
+                                for annotation in constructor["annotations"]
+                            ),
+                            parameters=tuple(
+                                JavaParameterDeclaration(
+                                    name=parameter["name"],
+                                    type=parameter["type"],
+                                    annotations=tuple(
+                                        JavaAnnotation(
+                                            name=annotation["name"],
+                                            value=annotation.get("value"),
+                                            methods=tuple(annotation.get("methods", ())),
+                                        )
+                                        for annotation in parameter["annotations"]
+                                    ),
+                                )
+                                for parameter in constructor["parameters"]
+                            ),
+                        )
+                        for constructor in class_declaration["constructors"]
                     ),
                 )
                 for class_declaration in payload["classes"]

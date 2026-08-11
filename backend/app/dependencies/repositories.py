@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 
 from app.analyzers.controller_analyzer import ControllerAnalyzer
+from app.analyzers.dependency_analyzer import DependencyAnalyzer
 from app.analyzers.endpoint_analyzer import EndpointAnalyzer
 from app.analyzers.repository_analyzer import RepositoryAnalyzer
 from app.analyzers.service_analyzer import ServiceAnalyzer
@@ -50,6 +51,7 @@ def get_analysis_service(request: Request) -> AnalysisService:
         service_analyzer=ServiceAnalyzer(),
         repository_analyzer=RepositoryAnalyzer(),
         endpoint_analyzer=EndpointAnalyzer(),
+        dependency_analyzer=DependencyAnalyzer(),
     )
 
 

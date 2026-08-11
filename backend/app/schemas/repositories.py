@@ -72,6 +72,7 @@ class RepositoryAnalyzeResponse(BaseModel):
     services: list["ServiceMetadata"]
     repositories: list["RepositoryMetadata"]
     endpoints: list["EndpointMetadata"]
+    dependencies: list["DependencyMetadata"]
 
 
 class ControllerMetadata(BaseModel):
@@ -148,3 +149,14 @@ class JavaMethodMetadata(BaseModel):
     return_type: str
     annotations: list[JavaAnnotationMetadata]
     parameters: list[JavaParameterMetadata]
+
+
+class DependencyMetadata(BaseModel):
+    """Metadata for one explicit class-level Java dependency."""
+
+    file_path: str
+    package_name: str
+    source_class_name: str
+    source_qualified_class_name: str
+    target_type: str
+    dependency_kind: str

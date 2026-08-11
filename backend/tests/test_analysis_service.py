@@ -3,12 +3,14 @@
 from pathlib import Path
 
 from app.analyzers.controller_analyzer import ControllerAnalyzer
+from app.analyzers.dependency_analyzer import DependencyAnalyzer
 from app.analyzers.endpoint_analyzer import EndpointAnalyzer
 from app.analyzers.repository_analyzer import RepositoryAnalyzer
 from app.analyzers.service_analyzer import ServiceAnalyzer
 from app.exceptions.repository import JavaParsingError
 from app.schemas.repositories import (
     EndpointMetadata,
+    DependencyMetadata,
     JavaAnnotationMetadata,
     ControllerMetadata,
     JavaClassMetadata,
@@ -22,6 +24,8 @@ from app.services.java_parser_service import (
     JavaAnnotation,
     JavaClassDeclaration,
     JavaCompilationUnit,
+    JavaConstructorDeclaration,
+    JavaFieldDeclaration,
     JavaMethodDeclaration,
     JavaParameterDeclaration,
     JavaParserResult,
@@ -39,9 +43,11 @@ class StubJavaParserService:
     ) -> None:
         self._results = results
         self._failing_paths = failing_paths or set()
+        self.parsed_paths: list[Path] = []
 
     def parse_file(self, file_path: str | Path) -> JavaParserResult:
         source_path = Path(file_path).resolve()
+        self.parsed_paths.append(source_path)
         if source_path in self._failing_paths:
             raise JavaParsingError(f"Failed to parse {source_path.name}.")
         return self._results[source_path]
@@ -160,6 +166,27 @@ def test_analyze_repository_extracts_class_controller_service_and_repository_met
                                     JavaParameterDeclaration(
                                         name="pet",
                                         type="Pet",
+                                        annotations=(),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        fields=(
+                            JavaFieldDeclaration(
+                                name="billingService",
+                                type="BillingService",
+                                visibility="private",
+                                annotations=(),
+                            ),
+                        ),
+                        constructors=(
+                            JavaConstructorDeclaration(
+                                visibility="public",
+                                annotations=(),
+                                parameters=(
+                                    JavaParameterDeclaration(
+                                        name="service",
+                                        type="BillingService",
                                         annotations=(),
                                     ),
                                 ),
@@ -376,12 +403,14 @@ def test_analyze_repository_extracts_class_controller_service_and_repository_met
         ),
     }
 
+    parser_service = StubJavaParserService(results=parser_results)
     analysis_service = AnalysisService(
-        java_parser_service=StubJavaParserService(results=parser_results),
+        java_parser_service=parser_service,
         controller_analyzer=ControllerAnalyzer(),
         service_analyzer=ServiceAnalyzer(),
         repository_analyzer=RepositoryAnalyzer(),
         endpoint_analyzer=EndpointAnalyzer(),
+        dependency_analyzer=DependencyAnalyzer(),
     )
 
     response = analysis_service.analyze_repository(repository_path)
@@ -389,6 +418,8 @@ def test_analyze_repository_extracts_class_controller_service_and_repository_met
     assert response.total_java_files == 14
     assert response.parsed_successfully == 14
     assert response.parse_failures == 0
+    assert len(parser_service.parsed_paths) == response.total_java_files
+    assert len(set(parser_service.parsed_paths)) == response.total_java_files
     assert len(response.classes) == 18
     assert all(isinstance(metadata, JavaClassMetadata) for metadata in response.classes)
     web_controller_class = next(
@@ -528,6 +559,16 @@ def test_analyze_repository_extracts_class_controller_service_and_repository_met
         ("WebController", "processCreationForm", "POST", "/pets/new"),
         ("WebController.InternalController", "internalHealth", "GET", "/internal"),
     }
+    assert response.dependencies == [
+        DependencyMetadata(
+            file_path=str(web_java.resolve()),
+            package_name="com.example.web",
+            source_class_name="WebController",
+            source_qualified_class_name="WebController",
+            target_type="BillingService",
+            dependency_kind="constructor_parameter",
+        )
+    ]
 
 
 def test_analyze_repository_skips_failed_files_in_all_metadata_lists(tmp_path: Path) -> None:
@@ -614,6 +655,14 @@ def test_analyze_repository_skips_failed_files_in_all_metadata_lists(tmp_path: P
                         qualified_class_name="ValidPlain",
                         annotations=("Component",),
                         extended_types=(),
+                        fields=(
+                            JavaFieldDeclaration(
+                                name="service",
+                                type="ValidService",
+                                visibility="private",
+                                annotations=(),
+                            ),
+                        ),
                     ),
                 ),
             ),
@@ -629,6 +678,7 @@ def test_analyze_repository_skips_failed_files_in_all_metadata_lists(tmp_path: P
         service_analyzer=ServiceAnalyzer(),
         repository_analyzer=RepositoryAnalyzer(),
         endpoint_analyzer=EndpointAnalyzer(),
+        dependency_analyzer=DependencyAnalyzer(),
     )
 
     response = analysis_service.analyze_repository(repository_path)
@@ -651,6 +701,8 @@ def test_analyze_repository_skips_failed_files_in_all_metadata_lists(tmp_path: P
     assert len(response.endpoints) == 1
     assert response.endpoints[0].method_name == "health"
     assert response.endpoints[0].path == "/health"
+    assert len(response.dependencies) == 1
+    assert response.dependencies[0].target_type == "ValidService"
     assert all(
         metadata.file_path != str(invalid_repository_java.resolve())
         for metadata in response.repositories
@@ -658,6 +710,10 @@ def test_analyze_repository_skips_failed_files_in_all_metadata_lists(tmp_path: P
     assert all(
         metadata.file_path != str(invalid_repository_java.resolve())
         for metadata in response.endpoints
+    )
+    assert all(
+        metadata.file_path != str(invalid_repository_java.resolve())
+        for metadata in response.dependencies
     )
 
 
@@ -758,6 +814,7 @@ def test_analyze_repository_includes_method_metadata_shapes_and_visibility(tmp_p
         service_analyzer=ServiceAnalyzer(),
         repository_analyzer=RepositoryAnalyzer(),
         endpoint_analyzer=EndpointAnalyzer(),
+        dependency_analyzer=DependencyAnalyzer(),
     )
 
     response = analysis_service.analyze_repository(repository_path)
@@ -770,6 +827,7 @@ def test_analyze_repository_includes_method_metadata_shapes_and_visibility(tmp_p
     assert response.services == []
     assert response.repositories == []
     assert response.endpoints == []
+    assert response.dependencies == []
 
     showcase = next(
         class_metadata
