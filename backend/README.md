@@ -1,6 +1,6 @@
 # CodeAtlas Backend
 
-The FastAPI foundation for CodeAtlas. It provides application configuration, structured logging, development CORS, a health endpoint, and public GitHub repository cloning.
+FastAPI backend for the CodeAtlas Java architecture analyzer. For the project overview, architecture diagram, complete setup, demo flow, and design rationale, see the [root README](../README.md).
 
 ## Run locally
 
@@ -42,8 +42,10 @@ Java source files with `POST /repositories/analyze`. Both endpoints accept:
 }
 ```
 
-Extract Spring controller classes with `POST /repositories/controllers` using the
-same `local_path` request body.
+For the preferred unified flow, use `POST /repositories/analyze-all`. It analyzes
+the repository once and returns raw analysis, summary, package analysis, and the
+architecture graph. Submit that response with a question to `POST /repositories/ask`
+for stateless, metadata-grounded architecture Q&A.
 
 ## Layout
 
@@ -51,5 +53,7 @@ same `local_path` request body.
 - `app/api/` composes HTTP routers; `routes/health.py` contains the health endpoint.
 - `app/core/config.py` reads typed configuration from environment variables and `.env`.
 - `app/core/logging.py` configures JSON structured logs using the standard library.
-- `app/models/`, `schemas/`, `services/`, `analyzers/`, `database/`, and `utils/` reserve clear extension points without introducing premature implementation.
+- `app/analyzers/` extracts Spring components, endpoints, and declared dependencies.
+- `app/services/` orchestrates analysis, derives architecture views, and builds grounded AI context.
+- `java_parser/` contains the JavaParser command-line bridge.
 - `tests/` contains API-level tests.
