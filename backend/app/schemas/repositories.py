@@ -266,6 +266,20 @@ class RepositoryAnalyzeAllResponse(BaseModel):
     graph: ArchitectureGraph
 
 
+class RepositoryArchitectureQuestionRequest(BaseModel):
+    """One stateless architecture question with existing CodeAtlas metadata."""
+
+    question: str = Field(min_length=1, max_length=1000)
+    context: RepositoryAnalyzeAllResponse
+
+
+class RepositoryArchitectureAnswerResponse(BaseModel):
+    """One grounded answer from the configured architecture assistant model."""
+
+    answer: str
+    model: str
+
+
 class MethodParameterMetadata(BaseModel):
     """One parameter in frontend-ready method navigation metadata."""
 

@@ -11,9 +11,11 @@ from app.analyzers.repository_analyzer import RepositoryAnalyzer
 from app.analyzers.service_analyzer import ServiceAnalyzer
 from app.core.config import Settings
 from app.services.analysis_service import AnalysisService
+from app.services.architecture_context_service import ArchitectureContextService
 from app.services.architecture_graph_service import ArchitectureGraphService
 from app.services.java_parser_service import JavaParserService
 from app.services.method_analysis_service import MethodAnalysisService
+from app.services.openrouter_service import OpenRouterService
 from app.services.package_analysis_service import PackageAnalysisService
 from app.services.repository_service import RepositoryService
 from app.services.repository_inspector import RepositoryInspector
@@ -110,4 +112,30 @@ def get_method_analysis_service() -> MethodAnalysisService:
 MethodAnalysisServiceDependency = Annotated[
     MethodAnalysisService,
     Depends(get_method_analysis_service),
+]
+
+
+def get_architecture_context_service() -> ArchitectureContextService:
+    """Provide deterministic selection of metadata for an AI question."""
+    return ArchitectureContextService()
+
+
+ArchitectureContextServiceDependency = Annotated[
+    ArchitectureContextService,
+    Depends(get_architecture_context_service),
+]
+
+
+def get_openrouter_service(request: Request) -> OpenRouterService:
+    """Provide the server-side OpenRouter client from application settings."""
+    settings: Settings = request.app.state.settings
+    return OpenRouterService(
+        api_key=settings.openrouter_api_key,
+        model=settings.openrouter_model,
+    )
+
+
+OpenRouterServiceDependency = Annotated[
+    OpenRouterService,
+    Depends(get_openrouter_service),
 ]

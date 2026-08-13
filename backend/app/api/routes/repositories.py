@@ -4,12 +4,19 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.dependencies.repositories import (
     AnalysisServiceDependency,
+    ArchitectureContextServiceDependency,
     ArchitectureGraphServiceDependency,
     MethodAnalysisServiceDependency,
+    OpenRouterServiceDependency,
     PackageAnalysisServiceDependency,
     RepositoryInspectorDependency,
     RepositoryServiceDependency,
     RepositorySummaryServiceDependency,
+)
+from app.exceptions.ai import (
+    AIConfigurationError,
+    AIProviderError,
+    AIProviderTimeoutError,
 )
 from app.exceptions.repository import (
     InvalidRepositoryPathError,
@@ -25,6 +32,8 @@ from app.schemas.repositories import (
     RepositoryAnalyzeAllResponse,
     RepositoryAnalyzeRequest,
     RepositoryAnalyzeResponse,
+    RepositoryArchitectureAnswerResponse,
+    RepositoryArchitectureQuestionRequest,
     RepositoryControllersResponse,
     RepositoryCloneRequest,
     RepositoryCloneResponse,
@@ -34,6 +43,43 @@ from app.schemas.repositories import (
 )
 
 router = APIRouter(prefix="/repositories")
+
+
+@router.post("/ask", response_model=RepositoryArchitectureAnswerResponse)
+def ask_repository_architecture(
+    payload: RepositoryArchitectureQuestionRequest,
+    context_service: ArchitectureContextServiceDependency,
+    openrouter_service: OpenRouterServiceDependency,
+) -> RepositoryArchitectureAnswerResponse:
+    """Answer one question using only submitted CodeAtlas analysis metadata."""
+    try:
+        architecture_context = context_service.build_context(
+            payload.question,
+            payload.context,
+        )
+        answer = openrouter_service.answer_question(
+            payload.question,
+            architecture_context,
+        )
+        return RepositoryArchitectureAnswerResponse(
+            answer=answer,
+            model=openrouter_service.model,
+        )
+    except AIConfigurationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI assistant is not configured.",
+        ) from error
+    except AIProviderTimeoutError as error:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="AI provider request timed out.",
+        ) from error
+    except AIProviderError as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI provider request failed.",
+        ) from error
 
 
 @router.post(

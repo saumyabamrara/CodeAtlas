@@ -21,6 +21,8 @@ class Settings(BaseSettings):
         BASE_DIR / "java_parser" / "target" / "codeatlas-java-parser-runner.jar"
     )
     java_executable: str = "java"
+    openrouter_api_key: str | None = None
+    openrouter_model: str = "openai/gpt-oss-20b:free"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
