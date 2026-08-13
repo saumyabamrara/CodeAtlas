@@ -111,7 +111,16 @@ def build_context_fixture() -> RepositoryAnalyzeAllResponse:
                 target_type="OwnerRepository",
                 dependency_kind="constructor_parameter",
                 source_scope="production",
-            )
+            ),
+            DependencyMetadata(
+                file_path=owner_controller.file_path,
+                package_name=owner_controller.package_name,
+                source_class_name=owner_controller.class_name,
+                source_qualified_class_name=owner_controller.qualified_class_name,
+                target_type="String",
+                dependency_kind="field",
+                source_scope="production",
+            ),
         ],
     )
     summary = RepositorySummary(
@@ -230,6 +239,7 @@ def test_exact_class_context_contains_methods_endpoints_dependencies_and_neighbo
     assert "public String showOwner()" in result
     assert "GET /owners/{id}" in result
     assert "OwnerRepository (constructor_parameter)" in result
+    assert "OwnerController -> String" not in result
     assert "DIRECTLY CONNECTED CLASSES" in result
     assert "role=repository" in result
     assert "Unrelated" not in result

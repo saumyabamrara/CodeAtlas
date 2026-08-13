@@ -1,5 +1,7 @@
 import type {
   DashboardAnalysis,
+  RepositoryArchitectureAnswerResponse,
+  RepositoryArchitectureQuestionRequest,
   RepositoryAnalyzeRequest,
   UnifiedRepositoryAnalysisResponse,
 } from '../types/api';
@@ -11,6 +13,8 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:800
 const ANALYSIS_ERROR =
   'Could not analyze this repository. Make sure the CodeAtlas backend is running and the repository path is valid.';
 const GRAPH_ERROR = 'Architecture graph could not be loaded.';
+const ASSISTANT_ERROR =
+  'The architecture assistant could not answer right now. The free AI provider may be busy; please try again.';
 
 async function readError(response: Response): Promise<string> {
   try {
@@ -29,7 +33,7 @@ async function readError(response: Response): Promise<string> {
 
 async function post<T>(
   path: string,
-  request: RepositoryAnalyzeRequest,
+  request: object,
   errorFallback?: string,
 ): Promise<T> {
   let response: Response;
@@ -74,5 +78,20 @@ export async function analyzeRepository(localPath: string): Promise<DashboardAna
     packageAnalysis: response.packages,
     repositoryAnalysis: response.analysis,
     architectureGraph: response.graph,
+    unifiedContext: response,
   };
+}
+
+export async function askArchitecture(
+  request: RepositoryArchitectureQuestionRequest,
+): Promise<RepositoryArchitectureAnswerResponse> {
+  const response = await post<RepositoryArchitectureAnswerResponse>(
+    '/repositories/ask',
+    request,
+    ASSISTANT_ERROR,
+  );
+  if (typeof response.answer !== 'string' || typeof response.model !== 'string') {
+    throw new Error('The backend returned an unexpected assistant response.');
+  }
+  return response;
 }

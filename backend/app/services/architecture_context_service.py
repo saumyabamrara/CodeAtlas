@@ -10,6 +10,11 @@ class ArchitectureContextService:
     """Select relevant metadata without parsing files or calling external services."""
 
     MAX_CONTEXT_CHARACTERS = 20_000
+    _NON_ARCHITECTURAL_TYPES = {
+        "boolean", "byte", "char", "double", "float", "int", "long", "short",
+        "Boolean", "Byte", "Character", "Double", "Float", "Integer", "Long", "Short",
+        "String", "Object", "Class", "Void",
+    }
     _GENERAL_TERMS = ("architecture", "overview", "application", "repository", "dependency graph")
     _CATEGORY_TERMS = {
         "controllers": ("controller", "controllers"),
@@ -99,7 +104,12 @@ class ArchitectureContextService:
         )))
         lines.extend(self._endpoints(context, metadata.package_name, metadata.qualified_class_name))
         dependencies = sorted(
-            (item for item in context.analysis.dependencies if item.package_name == metadata.package_name and item.source_qualified_class_name == metadata.qualified_class_name),
+            (
+                item for item in context.analysis.dependencies
+                if item.package_name == metadata.package_name
+                and item.source_qualified_class_name == metadata.qualified_class_name
+                and self._base_type(item.target_type) not in self._NON_ARCHITECTURAL_TYPES
+            ),
             key=lambda item: (item.target_type, item.dependency_kind),
         )
         lines.extend(self._section("DECLARED DEPENDENCIES", (
@@ -114,6 +124,11 @@ class ArchitectureContextService:
                 for node_id in neighbor_ids if node_id in nodes
             )))
         return lines
+
+    @staticmethod
+    def _base_type(target_type: str) -> str:
+        """Return the outer simple type used to suppress language-level noise."""
+        return re.split(r"[<\[\s]", target_type.rsplit(".", 1)[-1], maxsplit=1)[0]
 
     def _package_context(self, package_name: str | None, context: RepositoryAnalyzeAllResponse, nodes: dict[str, GraphNode]) -> list[str]:
         packages = sorted(context.packages.packages, key=lambda item: item.package_name)

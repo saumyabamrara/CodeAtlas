@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { ArchitectureGraph } from './components/ArchitectureGraph';
+import { ArchitectureAssistant } from './components/ArchitectureAssistant';
 import { ComponentList } from './components/ComponentList';
 import { PackageTable } from './components/PackageTable';
 import { RepositoryInput } from './components/RepositoryInput';
@@ -143,6 +144,7 @@ function App() {
             </section>
 
             <SourceBreakdown summary={summary} />
+            <ArchitectureAssistant context={result.unifiedContext} />
             <PackageTable packages={result.packageAnalysis.packages} />
 
             <div className="component-grid" aria-label="Detected components">

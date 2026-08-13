@@ -91,4 +91,15 @@ export interface DashboardAnalysis {
   packageAnalysis: PackageAnalysisResponse;
   repositoryAnalysis: RepositoryAnalysis;
   architectureGraph: ArchitectureGraphResponse;
+  unifiedContext: UnifiedRepositoryAnalysisResponse;
+}
+
+export interface RepositoryArchitectureQuestionRequest {
+  question: string;
+  context: UnifiedRepositoryAnalysisResponse;
+}
+
+export interface RepositoryArchitectureAnswerResponse {
+  answer: string;
+  model: string;
 }
