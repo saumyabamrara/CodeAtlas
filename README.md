@@ -16,7 +16,7 @@ CodeAtlas turns a local Java repository into structured architecture metadata, a
 
 ## Demo
 
-Enter a repository path that is accessible to the backend and select **Analyze Repository**. CodeAtlas presents:
+Paste a public HTTPS GitHub repository URL or a local path and select **Analyze Repository**. CodeAtlas clones remote repositories into its workspace before running the same analysis pipeline. It then presents:
 
 - repository and parser health metrics;
 - production versus test source breakdown;
@@ -120,9 +120,14 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-Open `http://localhost:5173` and enter the absolute path to a Java repository. The path must be readable by the machine running the backend.
+Open `http://localhost:5173` and enter either:
+
+- a public URL such as `https://github.com/spring-projects/spring-petclinic`; or
+- an absolute Java repository path readable by the backend.
 
 ## Primary API flow
+
+For a GitHub URL, the frontend first calls `POST /repositories/clone` and passes the returned `local_path` into the analysis request below. Local paths skip the cloning step.
 
 ### Analyze once
 
@@ -190,7 +195,7 @@ CodeAtlas/
 
 - Java and Spring-focused; it is not a general multi-language analyzer.
 - Dependency extraction models declared structural relationships, not a full runtime call graph.
-- Repository paths are local to the backend environment; this Phase 1 demo is not a hosted repository service.
+- Public HTTPS GitHub repositories are supported; private repositories and authenticated cloning are out of scope.
 - AI Q&A is stateless and may only answer from supplied CodeAtlas metadata.
 - No authentication, persistence, vector database, code generation, or source modification is included.
 

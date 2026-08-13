@@ -3,6 +3,8 @@ import type {
   RepositoryArchitectureAnswerResponse,
   RepositoryArchitectureQuestionRequest,
   RepositoryAnalyzeRequest,
+  RepositoryCloneRequest,
+  RepositoryCloneResponse,
   UnifiedRepositoryAnalysisResponse,
 } from '../types/api';
 
@@ -11,8 +13,10 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:800
   '',
 );
 const ANALYSIS_ERROR =
-  'Could not analyze this repository. Make sure the CodeAtlas backend is running and the repository path is valid.';
+  'Could not analyze this repository. Make sure the backend is running and the repository path is valid.';
 const GRAPH_ERROR = 'Architecture graph could not be loaded.';
+const CLONE_ERROR =
+  'Could not clone this repository. Use a valid public HTTPS GitHub repository URL.';
 const ASSISTANT_ERROR =
   'The architecture assistant could not answer right now. The free AI provider may be busy; please try again.';
 
@@ -80,6 +84,25 @@ export async function analyzeRepository(localPath: string): Promise<DashboardAna
     architectureGraph: response.graph,
     unifiedContext: response,
   };
+}
+
+export async function cloneRepository(
+  repositoryUrl: string,
+): Promise<RepositoryCloneResponse> {
+  const request: RepositoryCloneRequest = { repository_url: repositoryUrl };
+  const response = await post<RepositoryCloneResponse>(
+    '/repositories/clone',
+    request,
+    CLONE_ERROR,
+  );
+  if (
+    typeof response.repository_name !== 'string' ||
+    typeof response.local_path !== 'string' ||
+    typeof response.default_branch !== 'string'
+  ) {
+    throw new Error('The backend returned an unexpected clone response.');
+  }
+  return response;
 }
 
 export async function askArchitecture(

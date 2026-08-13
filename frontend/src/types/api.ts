@@ -2,6 +2,17 @@ export interface RepositoryAnalyzeRequest {
   local_path: string;
 }
 
+export interface RepositoryCloneRequest {
+  repository_url: string;
+}
+
+export interface RepositoryCloneResponse {
+  repository_name: string;
+  local_path: string;
+  default_branch: string;
+  clone_timestamp: string;
+}
+
 export interface RepositorySummary {
   total_java_files: number;
   parsed_successfully: number;

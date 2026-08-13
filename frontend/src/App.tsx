@@ -7,41 +7,49 @@ import { PackageTable } from './components/PackageTable';
 import { RepositoryInput } from './components/RepositoryInput';
 import { SourceBreakdown } from './components/SourceBreakdown';
 import { StatCard } from './components/StatCard';
-import { analyzeRepository } from './services/api';
+import { analyzeRepository, cloneRepository } from './services/api';
 import type { DashboardAnalysis } from './types/api';
 
 const GENERIC_ERROR =
-  'Could not analyze this repository. Make sure the CodeAtlas backend is running and the repository path is valid.';
+  'Could not analyze this repository. Make sure the backend is running and the repository source is valid.';
 
 function App() {
   const [activeView, setActiveView] = useState<'overview' | 'graph'>('overview');
   const [repositoryPath, setRepositoryPath] = useState('');
   const [result, setResult] = useState<DashboardAnalysis | null>(null);
   const [analyzedPath, setAnalyzedPath] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [activity, setActivity] = useState<'cloning' | 'analyzing' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const loading = activity !== null;
 
   const handleAnalyze = async () => {
-    const localPath = repositoryPath.trim();
-    if (!localPath) {
-      setError('Enter a local repository path before starting analysis.');
+    const repositorySource = repositoryPath.trim();
+    if (!repositorySource) {
+      setError('Enter a public GitHub URL or local repository path.');
       setResult(null);
       return;
     }
 
-    setLoading(true);
+    const isRemoteRepository = /^https?:\/\//i.test(repositorySource);
+    setActivity(isRemoteRepository ? 'cloning' : 'analyzing');
     setAssistantOpen(false);
     setError(null);
     setResult(null);
     try {
-      const analysis = await analyzeRepository(localPath);
+      let analysisPath = repositorySource;
+      if (isRemoteRepository) {
+        const clonedRepository = await cloneRepository(repositorySource);
+        analysisPath = clonedRepository.local_path;
+        setActivity('analyzing');
+      }
+      const analysis = await analyzeRepository(analysisPath);
       setResult(analysis);
-      setAnalyzedPath(localPath);
+      setAnalyzedPath(repositorySource);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : GENERIC_ERROR);
     } finally {
-      setLoading(false);
+      setActivity(null);
     }
   };
 
@@ -63,7 +71,7 @@ function App() {
           <h1>Turn a Java codebase into an architecture overview.</h1>
           <p className="hero-copy">
             Analyze classes, Spring components, endpoints, dependencies, and package
-            structure from one local repository path.
+            structure from a public GitHub URL or local repository path.
           </p>
         </section>
 
@@ -76,7 +84,7 @@ function App() {
           </div>
           <RepositoryInput
             value={repositoryPath}
-            loading={loading}
+            activity={activity}
             onChange={setRepositoryPath}
             onSubmit={handleAnalyze}
           />
@@ -84,8 +92,16 @@ function App() {
             <div className="loading-state" role="status" aria-live="polite">
               <span className="loading-spinner" />
               <div>
-                <strong>Analyzing repository architecture...</strong>
-                <p>Parsing Java metadata and assembling architecture views.</p>
+                <strong>
+                  {activity === 'cloning'
+                    ? 'Cloning public GitHub repository...'
+                    : 'Analyzing repository architecture...'}
+                </strong>
+                <p>
+                  {activity === 'cloning'
+                    ? 'Downloading the repository into the CodeAtlas workspace.'
+                    : 'Parsing Java metadata and assembling architecture views.'}
+                </p>
               </div>
             </div>
           ) : null}
@@ -136,8 +152,8 @@ function App() {
             <span className="empty-icon">{`{ }`}</span>
             <h2>Your architecture overview starts here</h2>
             <p>
-              Enter a repository path above. CodeAtlas will send it to the backend and
-              present the existing static-analysis results in this dashboard.
+              Enter a public GitHub URL or local path above. CodeAtlas will prepare the
+              repository and present its static-analysis results in this dashboard.
             </p>
           </section>
         ) : null}

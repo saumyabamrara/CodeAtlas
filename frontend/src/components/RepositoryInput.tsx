@@ -1,13 +1,13 @@
 interface RepositoryInputProps {
   value: string;
-  loading: boolean;
+  activity: 'cloning' | 'analyzing' | null;
   onChange: (value: string) => void;
   onSubmit: () => void;
 }
 
 export function RepositoryInput({
   value,
-  loading,
+  activity,
   onChange,
   onSubmit,
 }: RepositoryInputProps) {
@@ -19,23 +19,27 @@ export function RepositoryInput({
         onSubmit();
       }}
     >
-      <label htmlFor="repository-path">Repository path</label>
+      <label htmlFor="repository-path">Repository source</label>
       <div className="repository-input-row">
         <input
           id="repository-path"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="E:\Project\CodeAtlas\backend\workspace\spring-petclinic"
+          placeholder="https://github.com/spring-projects/spring-petclinic"
           autoComplete="off"
           spellCheck={false}
           aria-describedby="repository-path-help"
         />
-        <button type="submit" disabled={loading}>
-          {loading ? 'Analyzing…' : 'Analyze Repository'}
+        <button type="submit" disabled={activity !== null}>
+          {activity === 'cloning'
+            ? 'Cloning...'
+            : activity === 'analyzing'
+              ? 'Analyzing...'
+              : 'Analyze Repository'}
         </button>
       </div>
       <p id="repository-path-help" className="field-help">
-        Enter a local path available to the CodeAtlas backend.
+        Paste a public HTTPS GitHub URL or a local path available to the backend.
       </p>
     </form>
   );
