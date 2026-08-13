@@ -20,6 +20,7 @@ function App() {
   const [analyzedPath, setAnalyzedPath] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   const handleAnalyze = async () => {
     const localPath = repositoryPath.trim();
@@ -30,6 +31,7 @@ function App() {
     }
 
     setLoading(true);
+    setAssistantOpen(false);
     setError(null);
     setResult(null);
     try {
@@ -90,6 +92,15 @@ function App() {
           {error ? <div className="error-panel" role="alert">{error}</div> : null}
         </section>
 
+        <div
+          className={
+            result
+              ? `analysis-layout${assistantOpen ? ' assistant-open' : ''}`
+              : ''
+          }
+        >
+        <div className="analysis-content">
+        <div className="analysis-navigation">
         <nav className="view-tabs" aria-label="Analysis views">
           <button
             type="button"
@@ -106,6 +117,19 @@ function App() {
             Architecture Graph
           </button>
         </nav>
+        {result ? (
+          <button
+            type="button"
+            className={`assistant-toggle${assistantOpen ? ' active' : ''}`}
+            onClick={() => setAssistantOpen((open) => !open)}
+            aria-expanded={assistantOpen}
+            aria-controls="architecture-assistant"
+          >
+            <span>AI</span>
+            {assistantOpen ? 'Hide AI' : 'Ask AI'}
+          </button>
+        ) : null}
+        </div>
 
         {activeView === 'overview' && !result && !loading && !error ? (
           <section className="empty-state">
@@ -144,7 +168,6 @@ function App() {
             </section>
 
             <SourceBreakdown summary={summary} />
-            <ArchitectureAssistant context={result.unifiedContext} />
             <PackageTable packages={result.packageAnalysis.packages} />
 
             <div className="component-grid" aria-label="Detected components">
@@ -177,6 +200,16 @@ function App() {
             <p>The production class dependency graph will appear here.</p>
           </section>
         ) : null}
+        </div>
+        {result ? (
+          <div id="architecture-assistant" className="assistant-sidebar-slot">
+            <ArchitectureAssistant
+              context={result.unifiedContext}
+              onClose={() => setAssistantOpen(false)}
+            />
+          </div>
+        ) : null}
+        </div>
       </main>
 
       <footer>

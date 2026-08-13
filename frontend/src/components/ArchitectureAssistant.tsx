@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -13,35 +13,75 @@ const EXAMPLE_QUESTIONS = [
 
 interface ArchitectureAssistantProps {
   context: UnifiedRepositoryAnalysisResponse;
+  onClose: () => void;
 }
 
-export function ArchitectureAssistant({ context }: ArchitectureAssistantProps) {
+interface TranscriptEntry {
+  id: number;
+  question: string;
+  answer?: string;
+  model?: string;
+  error?: string;
+  pending: boolean;
+}
+
+export function ArchitectureAssistant({ context, onClose }: ArchitectureAssistantProps) {
   const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState<string | null>(null);
-  const [model, setModel] = useState<string | null>(null);
+  const [messages, setMessages] = useState<TranscriptEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const nextMessageId = useRef(0);
+  const transcript = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    transcript.current?.scrollTo({
+      top: transcript.current.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [messages]);
 
   const submitQuestion = async () => {
     const trimmedQuestion = question.trim();
     if (!trimmedQuestion || loading) return;
 
+    const messageId = nextMessageId.current++;
+    setQuestion('');
     setLoading(true);
-    setError(null);
-    setAnswer(null);
-    setModel(null);
+    setMessages((current) => [
+      ...current,
+      { id: messageId, question: trimmedQuestion, pending: true },
+    ]);
+
     try {
       const response = await askArchitecture({
         question: trimmedQuestion,
         context,
       });
-      setAnswer(response.answer);
-      setModel(response.model);
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                answer: response.answer,
+                model: response.model,
+                pending: false,
+              }
+            : message,
+        ),
+      );
     } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'The architecture assistant could not answer right now.',
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                error:
+                  requestError instanceof Error
+                    ? requestError.message
+                    : 'The architecture assistant could not answer right now.',
+                pending: false,
+              }
+            : message,
+        ),
       );
     } finally {
       setLoading(false);
@@ -49,30 +89,78 @@ export function ArchitectureAssistant({ context }: ArchitectureAssistantProps) {
   };
 
   return (
-    <section className="panel assistant-panel" aria-labelledby="assistant-title">
-      <div className="section-heading assistant-heading">
+    <aside className="panel assistant-panel" aria-labelledby="assistant-title">
+      <div className="assistant-header">
         <div>
           <p className="section-kicker">Grounded AI</p>
           <h2 id="assistant-title">Architecture Assistant</h2>
         </div>
-        <span className="count-badge">Uses current analysis</span>
+        <button
+          className="assistant-close"
+          type="button"
+          onClick={onClose}
+          aria-label="Close Architecture Assistant"
+        >
+          ×
+        </button>
       </div>
 
       <p className="assistant-copy">
-        Ask one question about the analyzed repository. Answers use CodeAtlas metadata,
-        not direct access to your source files.
+        Ask about this repository. Previous answers stay here for this analysis.
       </p>
 
-      <div className="example-questions" aria-label="Example questions">
-        {EXAMPLE_QUESTIONS.map((example) => (
-          <button
-            key={example}
-            type="button"
-            onClick={() => setQuestion(example)}
-            disabled={loading}
-          >
-            {example}
-          </button>
+      <div className="assistant-transcript" aria-live="polite" ref={transcript}>
+        {messages.length === 0 ? (
+          <div className="assistant-welcome">
+            <strong>Start with an example</strong>
+            <p>Answers use CodeAtlas metadata, not direct source-file access.</p>
+            <div className="example-questions" aria-label="Example questions">
+              {EXAMPLE_QUESTIONS.map((example) => (
+                <button
+                  key={example}
+                  type="button"
+                  onClick={() => setQuestion(example)}
+                  disabled={loading}
+                >
+                  {example}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {messages.map((message) => (
+          <article className="assistant-exchange" key={message.id}>
+            <div className="assistant-question">
+              <span>You</span>
+              <p>{message.question}</p>
+            </div>
+
+            {message.pending ? (
+              <div className="assistant-thinking" role="status">
+                <span className="loading-spinner" />
+                Reading the architecture metadata...
+              </div>
+            ) : null}
+
+            {message.error ? (
+              <div className="assistant-error" role="alert">{message.error}</div>
+            ) : null}
+
+            {message.answer ? (
+              <div className="assistant-answer">
+                <div className="assistant-answer-heading">
+                  <strong>CodeAtlas AI</strong>
+                  {message.model ? <code>{message.model}</code> : null}
+                </div>
+                <div className="assistant-answer-content">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {message.answer}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            ) : null}
+          </article>
         ))}
       </div>
 
@@ -83,40 +171,29 @@ export function ArchitectureAssistant({ context }: ArchitectureAssistantProps) {
           void submitQuestion();
         }}
       >
-        <label htmlFor="architecture-question">Question</label>
-        <div className="assistant-input-row">
-          <input
-            id="architecture-question"
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            placeholder="What does OwnerController depend on?"
-            maxLength={1000}
-            disabled={loading}
-          />
+        <label htmlFor="architecture-question">Ask a question</label>
+        <textarea
+          id="architecture-question"
+          value={question}
+          onChange={(event) => setQuestion(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              void submitQuestion();
+            }
+          }}
+          placeholder="What does OwnerController depend on?"
+          maxLength={1000}
+          rows={3}
+          disabled={loading}
+        />
+        <div className="assistant-form-footer">
+          <span>Enter to send · Shift+Enter for a new line</span>
           <button type="submit" disabled={loading || !question.trim()}>
             {loading ? 'Asking...' : 'Ask AI'}
           </button>
         </div>
       </form>
-
-      {loading ? (
-        <div className="assistant-status" role="status">
-          <span className="loading-spinner" />
-          Generating a grounded architecture answer...
-        </div>
-      ) : null}
-      {error ? <div className="assistant-error" role="alert">{error}</div> : null}
-      {answer ? (
-        <div className="assistant-answer" aria-live="polite">
-          <div className="assistant-answer-heading">
-            <strong>Answer</strong>
-            {model ? <code>{model}</code> : null}
-          </div>
-          <div className="assistant-answer-content">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer}</ReactMarkdown>
-          </div>
-        </div>
-      ) : null}
-    </section>
+    </aside>
   );
 }

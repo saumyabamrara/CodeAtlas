@@ -29,6 +29,8 @@ Enter a repository path that is accessible to the backend and select **Analyze R
 
 The configured OpenRouter model uses a free provider by default, so an occasional rate-limit response may require a retry.
 
+The assistant keeps previous questions and answers visible for the current analysis. This transcript lives only in frontend memory: every request remains independently grounded, and the transcript clears when a new repository is analyzed or the page is refreshed.
+
 ## Architecture
 
 ```mermaid
