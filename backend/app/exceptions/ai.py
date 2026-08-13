@@ -1,4 +1,4 @@
-"""Stable application exceptions for the AI architecture assistant."""
+"""Stable application exceptions for model-backed architecture Q&A."""
 
 
 class AIConfigurationError(RuntimeError):
@@ -6,8 +6,8 @@ class AIConfigurationError(RuntimeError):
 
 
 class AIProviderError(RuntimeError):
-    """Raised when the configured AI provider cannot return a usable answer."""
+    """Raised when the configured model provider cannot return a usable answer."""
 
 
 class AIProviderTimeoutError(AIProviderError):
-    """Raised when the AI provider exceeds the configured request timeout."""
+    """Raised when the model provider exceeds the configured request timeout."""

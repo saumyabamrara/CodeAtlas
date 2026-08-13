@@ -2,7 +2,7 @@
 
 **AI-powered Java architecture analyzer built with FastAPI, JavaParser, React, and OpenRouter.**
 
-CodeAtlas turns a local Java repository into structured architecture metadata, a repository dashboard, an interactive dependency graph, and grounded AI explanations. It is designed as a focused static-analysis portfolio project: the analyzer establishes the facts, and the language model explains those facts without reading or modifying source code.
+CodeAtlas turns a Java repository into structured architecture metadata, a repository dashboard, an interactive dependency graph, and grounded architecture explanations powered by a language model. It is designed as a focused static-analysis portfolio project: the analyzer establishes the facts, and the model explains those facts without reading or modifying source code.
 
 ## What it demonstrates
 
@@ -22,7 +22,7 @@ Paste a public HTTPS GitHub repository URL or a local path and select **Analyze 
 - production versus test source breakdown;
 - packages, controllers, and repositories;
 - a production dependency graph; and
-- an Architecture Assistant for one-shot questions such as:
+- an AI Architecture Assistant for repository questions such as:
   - `What does OwnerController depend on?`
   - `Which repositories are used by controllers?`
   - `Explain the architecture of this repository.`
@@ -56,7 +56,7 @@ The central design decision is **analyze once, derive many**. `POST /repositorie
 
 ### Why deterministic grounding instead of vector RAG?
 
-CodeAtlas already produces structured architectural facts. Selecting relevant classes, endpoints, dependencies, packages, and graph relationships directly is simpler and more explainable than embedding the same data. The AI prompt requires the model to distinguish observed facts from interpretation, admit when the metadata is insufficient, and never claim it read source code.
+CodeAtlas already produces structured architectural facts. Selecting relevant classes, endpoints, dependencies, packages, and graph relationships directly is simpler and more explainable than embedding the same data. The system prompt requires the model to distinguish observed facts from interpretation, admit when the metadata is insufficient, and never claim it read source code.
 
 ## Technology
 

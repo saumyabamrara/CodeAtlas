@@ -14,7 +14,7 @@ from app.exceptions.ai import (
 OPENROUTER_CHAT_COMPLETIONS_URL = (
     "https://openrouter.ai/api/v1/chat/completions"
 )
-GROUNDING_SYSTEM_PROMPT = """You are CodeAtlas AI, an assistant that explains software architecture using structured metadata produced by CodeAtlas.
+GROUNDING_SYSTEM_PROMPT = """You are the CodeAtlas Architecture Assistant. Explain software architecture using structured metadata produced by CodeAtlas.
 
 Use ONLY the supplied CodeAtlas context as factual information about the repository.
 

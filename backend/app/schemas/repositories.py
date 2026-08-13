@@ -274,7 +274,7 @@ class RepositoryArchitectureQuestionRequest(BaseModel):
 
 
 class RepositoryArchitectureAnswerResponse(BaseModel):
-    """One grounded answer from the configured architecture assistant model."""
+    """One context-backed answer from the configured architecture model."""
 
     answer: str
     model: str

@@ -142,7 +142,7 @@ function App() {
             aria-controls="architecture-assistant"
           >
             <span>AI</span>
-            {assistantOpen ? 'Hide AI' : 'Ask AI'}
+            {assistantOpen ? 'Hide assistant' : 'Ask AI'}
           </button>
         ) : null}
         </div>

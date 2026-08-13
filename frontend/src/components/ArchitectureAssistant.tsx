@@ -92,7 +92,7 @@ export function ArchitectureAssistant({ context, onClose }: ArchitectureAssistan
     <aside className="panel assistant-panel" aria-labelledby="assistant-title">
       <div className="assistant-header">
         <div>
-          <p className="section-kicker">Grounded AI</p>
+          <p className="section-kicker">AI Architecture Q&amp;A</p>
           <h2 id="assistant-title">Architecture Assistant</h2>
         </div>
         <button
@@ -150,7 +150,7 @@ export function ArchitectureAssistant({ context, onClose }: ArchitectureAssistan
             {message.answer ? (
               <div className="assistant-answer">
                 <div className="assistant-answer-heading">
-                  <strong>CodeAtlas AI</strong>
+                  <strong>CodeAtlas Assistant</strong>
                   {message.model ? <code>{message.model}</code> : null}
                 </div>
                 <div className="assistant-answer-content">

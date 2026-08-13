@@ -18,7 +18,7 @@ const GRAPH_ERROR = 'Architecture graph could not be loaded.';
 const CLONE_ERROR =
   'Could not clone this repository. Use a valid public HTTPS GitHub repository URL.';
 const ASSISTANT_ERROR =
-  'The architecture assistant could not answer right now. The free AI provider may be busy; please try again.';
+  'The architecture assistant could not answer right now. The AI provider may be busy; please try again.';
 
 async function readError(response: Response): Promise<string> {
   try {

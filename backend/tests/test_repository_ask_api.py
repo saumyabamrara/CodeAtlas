@@ -1,4 +1,4 @@
-"""API tests for the stateless repository architecture assistant."""
+"""API tests for stateless repository architecture Q&A."""
 
 import pytest
 from fastapi.testclient import TestClient

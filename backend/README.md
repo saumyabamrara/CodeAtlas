@@ -54,6 +54,6 @@ for stateless, metadata-grounded architecture Q&A.
 - `app/core/config.py` reads typed configuration from environment variables and `.env`.
 - `app/core/logging.py` configures JSON structured logs using the standard library.
 - `app/analyzers/` extracts Spring components, endpoints, and declared dependencies.
-- `app/services/` orchestrates analysis, derives architecture views, and builds grounded AI context.
+- `app/services/` orchestrates analysis, derives architecture views, and builds deterministic AI context.
 - `java_parser/` contains the JavaParser command-line bridge.
 - `tests/` contains API-level tests.
