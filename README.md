@@ -2,7 +2,28 @@
 
 **AI-powered Java architecture analyzer built with FastAPI, JavaParser, React, and OpenRouter.**
 
-CodeAtlas turns a Java repository into structured architecture metadata, a repository dashboard, an interactive dependency graph, and grounded architecture explanations powered by a language model. It is designed as a focused static-analysis portfolio project: the analyzer establishes the facts, and the model explains those facts without reading or modifying source code.
+## Quick overview
+
+Give CodeAtlas a public GitHub URL or a local Java project, and it creates an easy-to-explore overview of the codebase. It identifies classes, methods, packages, Spring controllers, API endpoints, repositories, and dependencies, then displays the results in a dashboard and an interactive architecture graph.
+
+You can also ask questions about the analyzed project in plain language. Answers are based on the extracted architecture data rather than guesses or direct access to the source code. CodeAtlas currently focuses on Java and Spring projects and is intended for understanding structure, not running, editing, or reviewing the repository's code.
+
+## Project structure
+
+```text
+CodeAtlas/
+|-- backend/
+|   |-- app/analyzers/       # Spring component, endpoint, and dependency extraction
+|   |-- app/services/        # Analysis orchestration, derived views, and AI grounding
+|   |-- app/api/routes/      # FastAPI endpoints
+|   |-- java_parser/         # JavaParser bridge
+|   `-- tests/               # Unit and API tests
+`-- frontend/
+    `-- src/
+        |-- components/      # Dashboard, graph, and Architecture Assistant
+        |-- services/        # Backend API client
+        `-- utils/           # Graph transformation and layout
+```
 
 ## What it demonstrates
 
@@ -174,23 +195,6 @@ npm run build
 
 The Phase 1 reference repository was Spring PetClinic. Its verified analysis produced 49 Java files with no parse failures, 49 classes, 6 controllers, 3 repositories, 17 endpoints, 67 declared dependencies, and a 25-node/7-edge production graph.
 
-## Project structure
-
-```text
-CodeAtlas/
-|-- backend/
-|   |-- app/analyzers/       # Spring component, endpoint, and dependency extraction
-|   |-- app/services/        # Analysis orchestration, derived views, and AI grounding
-|   |-- app/api/routes/      # FastAPI endpoints
-|   |-- java_parser/         # JavaParser bridge
-|   `-- tests/               # Unit and API tests
-`-- frontend/
-    `-- src/
-        |-- components/      # Dashboard, graph, and Architecture Assistant
-        |-- services/        # Backend API client
-        `-- utils/           # Graph transformation and layout
-```
-
 ## Scope and limitations
 
 - Java and Spring-focused; it is not a general multi-language analyzer.
@@ -198,17 +202,3 @@ CodeAtlas/
 - Public HTTPS GitHub repositories are supported; private repositories and authenticated cloning are out of scope.
 - AI Q&A is stateless and may only answer from supplied CodeAtlas metadata.
 - No authentication, persistence, vector database, code generation, or source modification is included.
-
-## Interview talking points
-
-- How the JavaParser subprocess is integrated with FastAPI
-- Why production and test scopes are tracked separately
-- How dependency types are resolved into graph edges without inventing relationships
-- Why `/analyze-all` avoids repeated parsing
-- How disconnected graph components are laid out while preserving backend nodes and edges
-- Why deterministic context selection was preferable to vector RAG
-- How prompts, metadata filtering, and stable provider errors reduce hallucinations
-
-## Resume summary
-
-> Built a FastAPI + React static-analysis platform that parses Java/Spring repositories to extract controllers, repositories, endpoints, methods, packages, and dependency relationships; visualizes architecture through an interactive dependency graph; and provides grounded architecture Q&A using deterministic structured context and an LLM.
